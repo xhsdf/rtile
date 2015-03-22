@@ -4,7 +4,7 @@
 # xprop, wmctrl, xrandr
 
 NAME = "xh_tile"
-VERSION = "1.50"
+VERSION = "1.60"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -12,7 +12,8 @@ if ARGV.include? '--version'
 end
 
 $medians = {0 => 0.583, 3=> 0.583, 4 => 0.417}
-$vertical_medians = {0 => -0.325}
+#~ $vertical_medians = {0 => -0.325}
+$vertical_medians = {}
 $reverse_x = [4] #ids of workspaces where windows should be places from right to left
 $reverse_y = [] #ids of workspaces where windows should be places from bottom to top
 $gaps = {:top => 42, :bottom => 22, :left => 22, :right => 22, :windows_x => 22, :windows_y => 22}
@@ -36,6 +37,8 @@ def main()
 		tile_all(windows, monitors, median, vertical_median, current_workspace)
 	elsif not (split = ARGV.grep(/--split-(up|down|left|right)/)).empty?
 		split_active(windows, split.first.gsub(/^--split-/, ''))
+	elsif not (grow = ARGV.grep(/--grow-(up|down|left|right)/)).empty?
+		grow_active(windows, grow.first.gsub(/^--grow-/, ''))
 	else
 		tile_active(windows, monitors, median, vertical_median, ARGV.select do |arg| arg =~ /^(l|r|t|b)+$/ end)
 	end
@@ -67,6 +70,76 @@ def tile_active(windows, monitors, median, vertical_median, args)
 end
 
 
+def grow_active(windows, direction)
+	window = get_active_window(windows)
+	other_windows = windows.select do |w| window.id != w.id and w.workspace == window.workspace and not w.is_hidden? end
+	grow(window, direction, other_windows)
+end
+
+
+def grow(window, direction, other_windows)
+	window = fix_window_geometry(window)
+	if direction == 'down' or direction == 'up'
+		windows = other_windows.select do |w| (direction == 'down' ? (w.y > window.y + window.height) : (w.y + w.height < window.y)) and (lies_between(window.x, window.width, w.x, w.width) or lies_between(w.x, w.width, window.x, window.width)) end
+		if direction == 'down'
+			windows.sort_by! do |w| w.y end
+		else
+			windows.sort_by! do |w| w.y + w.height end.reverse!
+		end
+		if windows.empty?
+			m = get_monitor(window, Monitor.get_monitors())
+		else
+			w = windows.first
+			w = fix_window_geometry(w)
+		end
+		
+		if direction == 'down'
+			height = w.nil? ? ((m.y + m.height) - window.y - $gaps[:bottom]) : (w.y - window.y - $gaps[:windows_y])
+			window.resize(window.x, window.y, window.width, height)
+		else
+			y = w.nil? ? (m.y + $gaps[:top]) : (w.y + w.height + $gaps[:windows_y])
+			height = window.height + (window.y - y)
+			window.resize(window.x, y, window.width, height)
+		end
+	elsif direction == 'right' or direction == 'left'
+		windows = other_windows.select do |w| (direction == 'right' ? (w.x > window.x + window.width) : (w.x + w.width < window.x)) and (lies_between(window.y, window.height, w.y, w.height) or lies_between(w.y, w.height, window.y, window.height)) end
+		if direction == 'right'
+			windows.sort_by! do |w| w.x end
+		else
+			windows.sort_by! do |w| w.x + w.width end.reverse!
+		end
+		if windows.empty?
+			m = get_monitor(window, Monitor.get_monitors())
+		else
+			w = windows.first
+			w = fix_window_geometry(w)
+		end
+		
+		if direction == 'right'
+			width = w.nil? ? ((m.x + m.width) - window.x - $gaps[:right]) : (w.x - window.x - $gaps[:windows_x])
+			window.resize(window.x, window.y, width, window.height)
+		else
+			x = w.nil? ? (m.x + $gaps[:left]) : (w.x + w.width + $gaps[:windows_x])
+			width = window.width + (window.x - x)
+			window.resize(x, window.y, width, window.height)
+		end
+	end
+end
+
+
+def lies_between(start, length, target_start, target_length)
+	if start >= target_start and start <= target_start + target_length
+		return true
+	end
+	
+	if start + length >= target_start and start + length <= target_start + target_length
+		return true
+	end
+	
+	return false
+end
+
+
 def split_active(windows, direction)
 	window = get_active_window(windows)
 	same_pos_windows = windows.select do |w| have_same_pos(window, w) and not window.id == w.id and w.workspace == window.workspace and not w.is_hidden? end
@@ -79,11 +152,16 @@ def have_same_pos(w1, w2)
 end
 
 
+def fix_window_geometry(window)
+	decorations = window.get_decorations()
+	return Window.new(window.id, window.workspace, window.pid, window.x - decorations[:left] - decorations[:right], window.y - decorations[:top] - decorations[:bottom], window.width + decorations[:left] + decorations[:right], window.height  + decorations[:top] + decorations[:bottom], window.class, window.host, window.title)
+end
+
+
 def split(window, direction, same_pos_windows = [nil])
 	same_pos_windows = [nil] if same_pos_windows.empty?
 	splits = [same_pos_windows.size + 1, 2].max
-	decorations = window.get_decorations()	
-	window = Window.new(window.id, window.workspace, window.pid, window.x - decorations[:left] - decorations[:right], window.y - decorations[:top] - decorations[:bottom], window.width + decorations[:left] + decorations[:right], window.height  + decorations[:top] + decorations[:bottom], window.class, window.host, window.title)
+	window = fix_window_geometry(window)
 	split_height = (window.height / splits) - ((splits - 1) * ($gaps[:windows_x] / splits))
 	split_width = (window.width / splits) - ((splits - 1) * ($gaps[:windows_y] / splits))
 	
