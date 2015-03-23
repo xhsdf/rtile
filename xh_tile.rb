@@ -79,60 +79,64 @@ end
 
 def grow(window, direction, other_windows)
 	window = fix_window_geometry(window)
-	if direction == 'down' or direction == 'up'
-		windows = other_windows.select do |w| (direction == 'down' ? (w.y > window.y + window.height) : (w.y + w.height < window.y)) and (lies_between(window.x, window.width, w.x, w.width) or lies_between(w.x, w.width, window.x, window.width)) end
-		if direction == 'down'
-			windows.sort_by! do |w| w.y end
+	if direction == 'up' or direction == 'down'
+		target_windows = other_windows.select do |w| (direction == 'up' ? (w.y + w.height < window.y) : (w.y > window.y + window.height)) and lies_between(window.x, window.x_end, w.x, w.x_end) end
+		if direction == 'up'
+			target_windows.sort_by! do |w| w.y + w.height end.reverse!
 		else
-			windows.sort_by! do |w| w.y + w.height end.reverse!
+			target_windows.sort_by! do |w| w.y end
 		end
-		if windows.empty?
+		if target_windows.empty?
 			m = get_monitor(window, Monitor.get_monitors())
 		else
-			w = windows.first
-			w = fix_window_geometry(w)
+			target = target_windows.first
+			target = fix_window_geometry(target)
 		end
 		
-		if direction == 'down'
-			height = w.nil? ? ((m.y + m.height) - window.y - $gaps[:bottom]) : (w.y - window.y - $gaps[:windows_y])
-			window.resize(window.x, window.y, window.width, height)
-		else
-			y = w.nil? ? (m.y + $gaps[:top]) : (w.y + w.height + $gaps[:windows_y])
+		if direction == 'up'
+			y = target.nil? ? (m.y + $gaps[:top]) : (target.y_end + $gaps[:windows_y])
 			height = window.height + (window.y - y)
 			window.resize(window.x, y, window.width, height)
-		end
-	elsif direction == 'right' or direction == 'left'
-		windows = other_windows.select do |w| (direction == 'right' ? (w.x > window.x + window.width) : (w.x + w.width < window.x)) and (lies_between(window.y, window.height, w.y, w.height) or lies_between(w.y, w.height, window.y, window.height)) end
-		if direction == 'right'
-			windows.sort_by! do |w| w.x end
 		else
-			windows.sort_by! do |w| w.x + w.width end.reverse!
+			height = target.nil? ? (m.y_end - window.y - $gaps[:bottom]) : (target.y - window.y - $gaps[:windows_y])
+			window.resize(window.x, window.y, window.width, height)
 		end
-		if windows.empty?
+	elsif direction == 'left' or direction == 'right'
+		target_windows = other_windows.select do |w| (direction == 'left' ? (w.x + w.width < window.x) : (w.x > window.x + window.width)) and lies_between(window.y, window.y_end, w.y, w.y_end) end
+		if direction == 'left'
+			target_windows.sort_by! do |w| w.x + w.width end.reverse!
+		else
+			target_windows.sort_by! do |w| w.x end
+		end
+		if target_windows.empty?
 			m = get_monitor(window, Monitor.get_monitors())
 		else
-			w = windows.first
-			w = fix_window_geometry(w)
+			target = target_windows.first
+			target = fix_window_geometry(target)
 		end
 		
-		if direction == 'right'
-			width = w.nil? ? ((m.x + m.width) - window.x - $gaps[:right]) : (w.x - window.x - $gaps[:windows_x])
-			window.resize(window.x, window.y, width, window.height)
-		else
-			x = w.nil? ? (m.x + $gaps[:left]) : (w.x + w.width + $gaps[:windows_x])
+		if direction == 'left'
+			x = target.nil? ? (m.x + $gaps[:left]) : (target.x_end + $gaps[:windows_x])
 			width = window.width + (window.x - x)
 			window.resize(x, window.y, width, window.height)
+		else
+			width = target.nil? ? (m.x_end - window.x - $gaps[:right]) : (target.x - window.x - $gaps[:windows_x])
+			window.resize(window.x, window.y, width, window.height)
 		end
 	end
 end
 
 
-def lies_between(start, length, target_start, target_length)
-	if start >= target_start and start <= target_start + target_length
+def lies_between(w_start, w_end, target_start, target_end)
+	if w_start >= target_start and w_start <= target_end
 		return true
 	end
 	
-	if start + length >= target_start and start + length <= target_start + target_length
+	if w_end >= target_start and w_end <= target_end
+		return true
+	end	
+	
+	if w_start <= target_start and w_end >= target_end
 		return true
 	end
 	
@@ -347,6 +351,17 @@ class Window
 		return windows
 	end
 	
+	
+	def x_end()
+		return @x + @width
+	end
+	
+	
+	def y_end()
+		return @y + @height
+	end
+	
+	
 	def is_hidden?()
 		return `xprop -id #{@id} _NET_WM_STATE`.to_s.include?('_NET_WM_STATE_HIDDEN')
 	end
@@ -377,11 +392,23 @@ end
 
 class Monitor
 	attr_reader :width, :height, :x, :y, :id, :windows, :name
-	
+
+
 	def initialize(name, width, height, x, y, id)
 		@name, @width, @height, @x, @y, @id = name, width, height, x, y, id
 	end
 	
+	
+	def x_end()
+		return @x + @width
+	end
+	
+	
+	def y_end()
+		return @y + @height
+	end
+
+
 	def self.get_monitors()
 		xrandr_output = `xrandr --query`
 
