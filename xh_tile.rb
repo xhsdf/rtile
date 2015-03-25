@@ -4,7 +4,7 @@
 # requires: xprop, wmctrl, xrandr
 
 NAME = "xh_tile"
-VERSION = "1.62"
+VERSION = "1.64"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -26,6 +26,19 @@ def main()
 
 	monitors = Monitor.get_monitors()
 	windows = Window.get_windows()
+	
+	
+	#~ windows.each do |w|
+		#~ puts "#{w.title}"
+		#~ puts "\tid: #{w.id}"
+		#~ puts "\tclass: #{w.class_name}"
+		#~ puts "\tpid: #{w.pid}"
+		#~ puts "\thidden: #{w.hidden}"
+		#~ puts "\tworkspace: #{w.workspace}"
+		#~ puts "\tdimensions:#{w.x},#{w.y} #{w.width}x#{w.height}"
+		#~ puts "\tdecorations: #{w.decorations[:top]} #{w.decorations[:bottom]} #{w.decorations[:left]} #{w.decorations[:right]} "
+	#~ end	
+	return
 	
 	current_workspace = Monitor.get_current_workspace()	
 	median = settings.medians[current_workspace]
@@ -69,13 +82,12 @@ end
 
 def grow_active(settings, windows, direction)
 	window = get_active_window(windows)
-	other_windows = windows.select do |w| window.id != w.id and w.workspace == window.workspace and not w.is_hidden? end
+	other_windows = windows.select do |w| window.id != w.id and w.workspace == window.workspace and not w.hidden end
 	grow(settings, window, direction, other_windows)
 end
 
 
 def grow(settings, window, direction, other_windows)
-	window = fix_window_geometry(window)
 	if direction == 'up' or direction == 'down'
 		target_windows = other_windows.select do |w| (direction == 'up' ? (w.y + w.height < window.y) : (w.y > window.y + window.height)) and lies_between(window.x, window.x_end, w.x, w.x_end) end
 		if direction == 'up'
@@ -87,7 +99,6 @@ def grow(settings, window, direction, other_windows)
 			m = get_monitor(window, Monitor.get_monitors())
 		else
 			target = target_windows.first
-			target = fix_window_geometry(target)
 		end
 		
 		if direction == 'up'
@@ -109,7 +120,6 @@ def grow(settings, window, direction, other_windows)
 			m = get_monitor(window, Monitor.get_monitors())
 		else
 			target = target_windows.first
-			target = fix_window_geometry(target)
 		end
 		
 		if direction == 'left'
@@ -143,7 +153,7 @@ end
 
 def split_active(settings, windows, direction)
 	window = get_active_window(windows)
-	same_pos_windows = windows.select do |w| have_same_pos(window, w) and not window.id == w.id and w.workspace == window.workspace and not w.is_hidden? end
+	same_pos_windows = windows.select do |w| have_same_pos(window, w) and not window.id == w.id and w.workspace == window.workspace and not w.hidden end
 	split(settings, window, direction, same_pos_windows)
 end
 
@@ -153,16 +163,9 @@ def have_same_pos(w1, w2)
 end
 
 
-def fix_window_geometry(window)
-	decorations = window.decorations
-	return Window.new(window.id, window.workspace, window.pid, window.x - decorations[:left] - decorations[:left], window.y - decorations[:top] - decorations[:top], window.width + decorations[:left] + decorations[:right], window.height  + decorations[:top] + decorations[:bottom], window.class, window.host, window.title)
-end
-
-
 def split(settings, window, direction, same_pos_windows = [nil])
 	same_pos_windows = [nil] if same_pos_windows.empty?
 	splits = [same_pos_windows.size + 1, 2].max
-	window = fix_window_geometry(window)
 	split_height = (window.height / splits) - ((splits - 1) * (settings.gaps[:windows_x] / splits))
 	split_width = (window.width / splits) - ((splits - 1) * (settings.gaps[:windows_y] / splits))
 	
@@ -202,11 +205,11 @@ def tile_all(settings, windows, monitors, median, current_workspace)
 	end
 
 	monitors.each do |monitor|
-		monitor_windows = monitor_hash[monitor.name].select do |w| w.workspace == current_workspace and not w.is_hidden? and (settings.floating.select do |i| w.class.downcase.include? i.downcase end).empty? end
+		monitor_windows = monitor_hash[monitor.name].select do |w| w.workspace == current_workspace and not w.hidden and (settings.floating.select do |i| w.class_name.downcase.include? i.downcase end).empty? end
 		sizes = [1]
 		monitor_windows.each do |w|
 			settings.size.keys.each do |p|
-				sizes << settings.size[p] if w.class.downcase.include? p
+				sizes << settings.size[p] if w.class_name.downcase.include? p
 			end
 		end		
 		[sizes.max - monitor_windows.length, 0].max.times do
@@ -254,7 +257,7 @@ def get_window_priority(settings, w, reverse_x, reverse_y)
 		criteria = [prio, 1]
 	else
 		settings.window_priority.reverse.each do |p|	
-			prio = settings.window_priority.index(p) if (p != nil and w.class.downcase.include? p.downcase)
+			prio = settings.window_priority.index(p) if (p != nil and w.class_name.downcase.include? p.downcase)
 		end
 		criteria << prio
 		criteria << 0
@@ -366,20 +369,52 @@ end
 
 
 class Window # requires: wmcrtl, xprop
-	attr_reader :id, :title, :class, :workspace, :x, :y, :width, :height, :pid, :host
+	attr_reader :id, :title, :class_name, :workspace, :x, :y, :width, :height, :pid, :hidden, :decorations
 
-	def initialize(id, workspace, pid, x, y, width, height, wm_class, host, title)
-		@id, @workspace, @pid, @x, @y, @width, @height, @class, @host, @title = id, workspace.to_i, pid, x.to_i, y.to_i, width.to_i, height.to_i, wm_class, host, title
-		@decorations = nil
+	def initialize(id)
+		#~ @id, @workspace, @pid, @x, @y, @width, @height, @class, @host, @title = id, workspace.to_i, pid, x.to_i, y.to_i, width.to_i, height.to_i, wm_class, host, title
+		#~ @decorations = nil
+		@id = id
+		@decorations = Hash.new
+		xprop = `xprop -id #{@id}`.to_s
+		
+		xprop.each_line do |line|
+			if line.include? 'WM_CLASS'
+				@class_name = line.split('=').last.strip.split(', ').last.gsub(/^"/, '').gsub(/"$/, '')
+			elsif line.include? 'WM_NAME'
+				@title = line.split('=').last.strip.gsub(/^"/, '').gsub(/"$/, '')
+			elsif line.include? '_NET_WM_STATE'
+				@hidden = line.split('=').last.include?('_NET_WM_STATE_HIDDEN')
+			elsif line.include? 'WM_DESKTOP'
+				@workspace = line.split('=').last.strip.to_i
+			elsif line.include? 'NET_WM_PID'
+				@pid = line.split('=').last.strip.to_i
+			elsif line.include? '_NET_FRAME_EXTENTS'
+				@decorations[:left], decorations[:right], decorations[:top], decorations[:bottom] = line.split('=').last.strip.split(",").collect do |i| i.strip.to_i end
+			end
+		end
+		get_accurate_dimensions()
 	end
+	
 	
 	def self.get_windows()
 		windows = []
-		`wmctrl -lpGx`.to_s.each_line do |line|
-			id, workspace, pid, x, y, width, height, wm_class, host, *title = line.split(' ')
-			windows << Window.new(id, workspace, pid, x, y, width, height, wm_class, host, title.join(' '))
+		get_window_ids().each do |id|
+			windows << Window.new(id)
 		end
 		return windows
+	end
+	
+	
+	def self.get_window_ids()
+		window_ids = []
+		`xprop -root _NET_CLIENT_LIST`.to_s.each_line do |line|
+			id_string = line.gsub(/_NET_CLIENT_LIST\(WINDOW\): *window id # +/, "")
+			id_string.split(', ').each do |id|
+				window_ids << id.strip
+			end
+		end
+		return window_ids.uniq
 	end
 	
 	
@@ -397,15 +432,9 @@ class Window # requires: wmcrtl, xprop
 		return `xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2`.strip
 	end
 	
-	
-	def is_hidden?()
-		return `xprop -id #{@id} _NET_WM_STATE`.to_s.include?('_NET_WM_STATE_HIDDEN')
-	end
-	
 	def resize(x, y, width, height)
-		decorations = get_decorations()
-		width -= (decorations[:left] + decorations[:right])
-		height -= (decorations[:top] + decorations[:bottom])
+		width -= (@decorations[:left] + @decorations[:right])
+		height -= (@decorations[:top] + @decorations[:bottom])
 	
 	
 		window_string = "-i -r #{@id}"
@@ -413,24 +442,30 @@ class Window # requires: wmcrtl, xprop
 
 		`wmctrl #{window_string} -b remove,maximized_vert,maximized_horz`
 		#~ `wmctrl #{window_string} -b remove,fullscreen`
-		
+		puts command
 		`#{command}`
 	end
 
 
-	def decorations()
-		if @decorations.nil?
-			@decorations = get_decorations()
-		else
-			return @decorations
+	def get_accurate_dimensions()
+		win_info = `xwininfo -id #{@id}`
+			
+		win_info.each_line do |line|
+			if line.include? 'Width:'
+				@width = line.match(/Width: *(.+)/i).captures.first.strip.to_i
+			elsif line.include? 'Height:'
+				@height = line.match(/Height: *(.+)/i).captures.first.strip.to_i
+			elsif line.include? 'Absolute upper-left X:'
+				@x = line.match(/Absolute upper-left X: *(.+)/i).captures.first.strip.to_i
+			elsif line.include? 'Absolute upper-left Y:'
+				@y = line.match(/Absolute upper-left Y: *(.+)/i).captures.first.strip.to_i
+			end
 		end
-	end
-
-
-	def get_decorations()
-		decorations = Hash.new
-		decorations[:left], decorations[:right], decorations[:top], decorations[:bottom] = `xprop -id #{@id} _NET_FRAME_EXTENTS`.split("=")[1].split(",").collect do |i| i.strip.to_i end
-		return decorations
+		
+		@x -= decorations[:left]
+		@y -= decorations[:top]
+		@width += decorations[:right] + decorations[:left]
+		@height += decorations[:bottom] + decorations[:top]
 	end
 end
 
@@ -476,5 +511,12 @@ class Monitor # requires: xrandr
 	end
 end
 
+start = Time.now
 
 main()
+
+finish = Time.now
+
+diff = finish - start
+
+puts diff
