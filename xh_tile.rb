@@ -4,7 +4,7 @@
 # requires: xprop, wmctrl, xrandr
 
 NAME = "xh_tile"
-VERSION = "1.64"
+VERSION = "1.65"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -37,8 +37,8 @@ def main()
 		#~ puts "\tworkspace: #{w.workspace}"
 		#~ puts "\tdimensions:#{w.x},#{w.y} #{w.width}x#{w.height}"
 		#~ puts "\tdecorations: #{w.decorations[:top]} #{w.decorations[:bottom]} #{w.decorations[:left]} #{w.decorations[:right]} "
-	#~ end	
-	return
+	#~ end
+	#~ return
 	
 	current_workspace = Monitor.get_current_workspace()	
 	median = settings.medians[current_workspace]
@@ -369,13 +369,14 @@ end
 
 
 class Window # requires: wmcrtl, xprop
-	attr_reader :id, :title, :class_name, :workspace, :x, :y, :width, :height, :pid, :hidden, :decorations
+	attr_reader :id, :title, :class_name, :workspace, :x, :y, :width, :height, :pid, :hidden, :decorations, :ignore
 
 	def initialize(id)
 		#~ @id, @workspace, @pid, @x, @y, @width, @height, @class, @host, @title = id, workspace.to_i, pid, x.to_i, y.to_i, width.to_i, height.to_i, wm_class, host, title
 		#~ @decorations = nil
 		@id = id
 		@decorations = Hash.new
+		@ignore = false
 		xprop = `xprop -id #{@id}`.to_s
 		
 		xprop.each_line do |line|
@@ -393,7 +394,11 @@ class Window # requires: wmcrtl, xprop
 				@decorations[:left], decorations[:right], decorations[:top], decorations[:bottom] = line.split('=').last.strip.split(",").collect do |i| i.strip.to_i end
 			end
 		end
-		get_accurate_dimensions()
+		if @decorations.empty?
+			@ignore = true
+		else
+			get_accurate_dimensions()
+		end
 	end
 	
 	
@@ -402,6 +407,7 @@ class Window # requires: wmcrtl, xprop
 		get_window_ids().each do |id|
 			windows << Window.new(id)
 		end
+		windows.reject do |w| w.ignore end
 		return windows
 	end
 	
@@ -442,7 +448,7 @@ class Window # requires: wmcrtl, xprop
 
 		`wmctrl #{window_string} -b remove,maximized_vert,maximized_horz`
 		#~ `wmctrl #{window_string} -b remove,fullscreen`
-		puts command
+		#~ puts command
 		`#{command}`
 	end
 
@@ -462,10 +468,10 @@ class Window # requires: wmcrtl, xprop
 			end
 		end
 		
-		@x -= decorations[:left]
-		@y -= decorations[:top]
-		@width += decorations[:right] + decorations[:left]
-		@height += decorations[:bottom] + decorations[:top]
+		@x -= @decorations[:left]
+		@y -= @decorations[:top]
+		@width += @decorations[:right] + @decorations[:left]
+		@height += @decorations[:bottom] + @decorations[:top]
 	end
 end
 
@@ -511,12 +517,5 @@ class Monitor # requires: xrandr
 	end
 end
 
-start = Time.now
 
 main()
-
-finish = Time.now
-
-diff = finish - start
-
-puts diff
