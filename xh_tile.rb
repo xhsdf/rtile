@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 
 
-# needs: xprop, wmctrl, xrandr
+# requires: xprop, wmctrl, xrandr
 
 NAME = "xh_tile"
 VERSION = "1.61"
@@ -365,7 +365,7 @@ class Settings
 end
 
 
-class Window # needs wmcrtl, xprop
+class Window # requires: wmcrtl, xprop
 	attr_reader :id, :title, :class, :workspace, :x, :y, :width, :height, :pid, :host
 
 	def initialize(id, workspace, pid, x, y, width, height, wm_class, host, title)
@@ -424,7 +424,7 @@ class Window # needs wmcrtl, xprop
 end
 
 
-class Monitor # needs randr
+class Monitor # requires: xrandr
 	attr_reader :width, :height, :x, :y, :id, :windows, :name
 
 
