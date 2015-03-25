@@ -4,7 +4,7 @@
 # requires: xprop, wmctrl, xrandr
 
 NAME = "xh_tile"
-VERSION = "1.61"
+VERSION = "1.62"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -154,8 +154,8 @@ end
 
 
 def fix_window_geometry(window)
-	decorations = window.get_decorations()
-	return Window.new(window.id, window.workspace, window.pid, window.x - decorations[:left] - decorations[:right], window.y - decorations[:top] - decorations[:bottom], window.width + decorations[:left] + decorations[:right], window.height  + decorations[:top] + decorations[:bottom], window.class, window.host, window.title)
+	decorations = window.decorations
+	return Window.new(window.id, window.workspace, window.pid, window.x - decorations[:left] - decorations[:left], window.y - decorations[:top] - decorations[:top], window.width + decorations[:left] + decorations[:right], window.height  + decorations[:top] + decorations[:bottom], window.class, window.host, window.title)
 end
 
 
@@ -370,6 +370,7 @@ class Window # requires: wmcrtl, xprop
 
 	def initialize(id, workspace, pid, x, y, width, height, wm_class, host, title)
 		@id, @workspace, @pid, @x, @y, @width, @height, @class, @host, @title = id, workspace.to_i, pid, x.to_i, y.to_i, width.to_i, height.to_i, wm_class, host, title
+		@decorations = nil
 	end
 	
 	def self.get_windows()
@@ -415,7 +416,17 @@ class Window # requires: wmcrtl, xprop
 		
 		`#{command}`
 	end
-	
+
+
+	def decorations()
+		if @decorations.nil?
+			@decorations = get_decorations()
+		else
+			return @decorations
+		end
+	end
+
+
 	def get_decorations()
 		decorations = Hash.new
 		decorations[:left], decorations[:right], decorations[:top], decorations[:bottom] = `xprop -id #{@id} _NET_FRAME_EXTENTS`.split("=")[1].split(",").collect do |i| i.strip.to_i end
