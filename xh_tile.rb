@@ -1,10 +1,10 @@
 #!/usr/bin/ruby
 
 
-# requires: xprop, wmctrl, xrandr
+# requires: xprop, wmctrl, xwininfo, xrandr
 
 NAME = "xh_tile"
-VERSION = "1.65"
+VERSION = "1.66"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -25,9 +25,8 @@ def main()
 	settings.set_size({"terminator" => 3, "transmission" => 3, "hexchat" => 3, "geany" => 2, "nvidia-settings" => 2, "nemo" => 3})
 
 	monitors = Monitor.get_monitors()
-	windows = Window.get_windows()
-	
-	
+
+	#~ windows = Window.get_windows()	
 	#~ windows.each do |w|
 		#~ puts "#{w.title}"
 		#~ puts "\tid: #{w.id}"
@@ -44,19 +43,19 @@ def main()
 	median = settings.medians[current_workspace]
 
 	if ARGV.include? "--all"
-		tile_all(settings, windows, monitors, median, current_workspace)
+		tile_all(settings, Window.get_windows(), monitors, median, current_workspace)
 	elsif not (split = ARGV.grep(/--split-(up|down|left|right)/)).empty?
-		split_active(settings, windows, split.first.gsub(/^--split-/, ''))
+		split_active(settings, Window.get_windows(), split.first.gsub(/^--split-/, ''))
 	elsif not (grow = ARGV.grep(/--grow-(up|down|left|right)/)).empty?
-		grow_active(settings, windows, grow.first.gsub(/^--grow-/, ''))
+		grow_active(settings, Window.get_windows(), grow.first.gsub(/^--grow-/, ''))
 	else
-		tile_active(settings, windows, monitors, median, ARGV.select do |arg| arg =~ /^(l|r|t|b)+$/ end)
+		tile_active(settings, monitors, median, ARGV.select do |arg| arg =~ /^(l|r|t|b)+$/ end)
 	end
 end
 
 
-def tile_active(settings, windows, monitors, median, args)
-	w = get_active_window(windows)
+def tile_active(settings, monitors, median, args)
+	w = get_active_window()
 	cols, rows, x, y = 1, 1, 0, 0
 	args.each do |arg|
 		arg.each_char do |c|
@@ -270,9 +269,13 @@ def get_window_priority(settings, w, reverse_x, reverse_y)
 end
 
 
-def get_active_window(windows)
+def get_active_window(windows = nil)
 	active_id = Window.get_active_window_id()
-	windows.select do |w| w.id.hex == active_id.hex end.first
+	if windows.nil?
+		return Window.new(active_id)
+	else
+		return windows.select do |w| w.id.hex == active_id.hex end.first
+	end
 end
 
 
@@ -368,22 +371,22 @@ class Settings
 end
 
 
-class Window # requires: wmcrtl, xprop
+class Window # requires: wmcrtl, xprop, xwininfo
 	attr_reader :id, :title, :class_name, :workspace, :x, :y, :width, :height, :pid, :hidden, :decorations, :ignore
 
 	def initialize(id)
-		#~ @id, @workspace, @pid, @x, @y, @width, @height, @class, @host, @title = id, workspace.to_i, pid, x.to_i, y.to_i, width.to_i, height.to_i, wm_class, host, title
-		#~ @decorations = nil
 		@id = id
 		@decorations = Hash.new
 		@ignore = false
-		xprop = `xprop -id #{@id}`.to_s
+		xprop = `xprop -id #{@id} WM_CLASS WM_NAME _NET_WM_STATE _NET_WM_DESKTOP _NET_WM_WINDOW_TYPE _NET_WM_PID _NET_FRAME_EXTENTS`.to_s
 		
 		xprop.each_line do |line|
 			if line.include? 'WM_CLASS'
-				@class_name = line.split('=').last.strip.split(', ').last.gsub(/^"/, '').gsub(/"$/, '')
+				@class_name = line.split('=').last.strip.split(', ').last.strip.tr('"', '')
 			elsif line.include? 'WM_NAME'
-				@title = line.split('=').last.strip.gsub(/^"/, '').gsub(/"$/, '')
+				@title = line.split('=').last.strip.tr('"', '')
+			elsif line.include? '_NET_WM_WINDOW_TYPE'
+				@ignore = !(line.split('=').last.include?('_NET_WM_WINDOW_TYPE_NORMAL'))
 			elsif line.include? '_NET_WM_STATE'
 				@hidden = line.split('=').last.include?('_NET_WM_STATE_HIDDEN')
 			elsif line.include? 'WM_DESKTOP'
@@ -394,10 +397,8 @@ class Window # requires: wmcrtl, xprop
 				@decorations[:left], decorations[:right], decorations[:top], decorations[:bottom] = line.split('=').last.strip.split(",").collect do |i| i.strip.to_i end
 			end
 		end
-		if @decorations.empty?
-			@ignore = true
-		else
-			get_accurate_dimensions()
+		unless @ignore
+			get_dimensions()
 		end
 	end
 	
@@ -407,7 +408,7 @@ class Window # requires: wmcrtl, xprop
 		get_window_ids().each do |id|
 			windows << Window.new(id)
 		end
-		windows.reject do |w| w.ignore end
+		windows.reject! do |w| w.ignore end
 		return windows
 	end
 	
@@ -453,7 +454,7 @@ class Window # requires: wmcrtl, xprop
 	end
 
 
-	def get_accurate_dimensions()
+	def get_dimensions()
 		win_info = `xwininfo -id #{@id}`
 			
 		win_info.each_line do |line|
