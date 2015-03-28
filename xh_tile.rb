@@ -19,8 +19,9 @@ def main()
 	settings.set_reverse_y([]) #ids of workspaces where windows should be places from bottom to top
 	settings.set_gaps({:top => 42, :bottom => 22, :left => 22, :right => 22, :windows_x => 22, :windows_y => 22})
 	settings.set_floating("mpv")
-	# priority lower than nil => window gets placed after windows not in the list and fake windows (see set_size())
+	# high priority windows get placed first
 	settings.set_high_priority_windows("firefox", "geany")
+	# low priority windows get placed last. even after fake windows (see set_size())
 	settings.set_low_priority_windows("transmission", "terminator", "terminal", "hexchat")
 	# pretends there are at least this many windows on the same desktop of the application
 	settings.set_size({"terminator" => 3, "transmission" => 3, "hexchat" => 3, "geany" => 2, "nvidia-settings" => 2, "nemo" => 3})
