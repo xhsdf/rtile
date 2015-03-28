@@ -4,7 +4,7 @@
 # requires: xprop, wmctrl, xwininfo, xrandr
 
 NAME = "xh_tile"
-VERSION = "1.66"
+VERSION = "1.67"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -18,9 +18,10 @@ def main()
 	settings.set_reverse_x([4]) #ids of workspaces where windows should be places from right to left
 	settings.set_reverse_y([]) #ids of workspaces where windows should be places from bottom to top
 	settings.set_gaps({:top => 42, :bottom => 22, :left => 22, :right => 22, :windows_x => 22, :windows_y => 22})
-	settings.set_floating(["mpv"])
+	settings.set_floating("mpv")
 	# priority lower than nil => window gets placed after windows not in the list and fake windows (see set_size())
-	settings.set_window_priority(["firefox", "geany", nil, "transmission", "terminator", "terminal", "hexchat"])
+	settings.set_high_priority_windows("firefox", "geany")
+	settings.set_low_priority_windows("transmission", "terminator", "terminal", "hexchat")
 	# pretends there are at least this many windows on the same desktop of the application
 	settings.set_size({"terminator" => 3, "transmission" => 3, "hexchat" => 3, "geany" => 2, "nvidia-settings" => 2, "nemo" => 3})
 
@@ -217,9 +218,8 @@ def tile_all(settings, windows, monitors, median, current_workspace)
 		reverse_x = settings.reverse_x.include? current_workspace
 		reverse_y = settings.reverse_y.include? current_workspace
 		
-		monitor_windows.sort_by! do |w| get_window_priority(settings, w, reverse_x, reverse_y) end
-		
-		
+		monitor_windows.sort_by! do |w| get_window_priority(settings.high_priority_windows, settings.low_priority_windows, w, reverse_x, reverse_y) end
+
 		max_vert_windows = 3
 		remaining_windows = monitor_windows.clone
 		columns = [[]]
@@ -248,15 +248,18 @@ def tile(settings, columns, monitor, median)
 end
 
 
-def get_window_priority(settings, w, reverse_x, reverse_y)
+def get_window_priority(high_priority_windows, low_priority_windows, w, reverse_x, reverse_y)
 	criteria = Array.new
 	
-	prio = settings.window_priority.index(nil)
+	prio = high_priority_windows.size
 	if w == nil
 		criteria = [prio, 1]
 	else
-		settings.window_priority.reverse.each do |p|	
-			prio = settings.window_priority.index(p) if (p != nil and w.class_name.downcase.include? p.downcase)
+		class_name = w.class_name.downcase
+		if high_priority_windows.include?(class_name)
+			prio = high_priority_windows.index(class_name)
+		elsif low_priority_windows.include?(class_name)
+			prio = high_priority_windows.size + low_priority_windows.index(class_name)
 		end
 		criteria << prio
 		criteria << 0
@@ -293,7 +296,7 @@ def get_window_geometries(margin, screen_length, window_count, median = nil, fir
 		remaining_length -= current_length
 	end
 	
-	lengths.reverse! if median != nil and median < 0	
+	lengths.reverse! if median != nil and median < 0
 	
 	coords = Array.new
 	coords[0] = margin + first_gap
@@ -303,7 +306,7 @@ def get_window_geometries(margin, screen_length, window_count, median = nil, fir
 	
 	window_geometries = []
 	for i in 0..coords.length do
-		window_geometries << [coords[i], lengths[i]]	
+		window_geometries << [coords[i], lengths[i]]
 	end
 	
 	return window_geometries
@@ -322,7 +325,7 @@ end
 
 
 class Settings
-	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :window_priority, :size
+	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :high_priority_windows, :low_priority_windows, :size
 
 	def initialize()
 		@medians = {}
@@ -330,7 +333,8 @@ class Settings
 		@reverse_y = []
 		@gaps = {:top => 0, :bottom => 0, :left => 0, :right => 0, :windows_x => 0, :windows_y => 0}
 		@floating = []
-		@window_priority = []
+		@high_priority_windows = []
+		@low_priority_windows = []
 		@size = []
 	end
 
@@ -355,19 +359,24 @@ class Settings
 	end
 
 
-	def set_floating(floating)
+	def set_floating(*floating)
 		@floating = floating
 	end
 
 
-	def set_window_priority(window_priority)
-		@window_priority = window_priority
+	def set_high_priority_windows(*high_priority_windows)
+		@high_priority_windows = high_priority_windows
+	end
+
+
+	def set_low_priority_windows(*low_priority_windows)
+		@low_priority_windows = low_priority_windows
 	end
 
 
 	def set_size(size)
 		@size = size
-	end	
+	end
 end
 
 
