@@ -22,9 +22,9 @@ def main()
 	# high priority windows get placed first
 	settings.set_high_priority_windows("firefox", "geany")
 	# low priority windows get placed last. even after fake windows (see set_size())
-	settings.set_low_priority_windows("transmission", "terminator", "terminal", "hexchat")
+	settings.set_low_priority_windows("transmission-gtk", "terminator", "terminal", "hexchat")
 	# pretends there are at least this many windows on the same desktop of the application
-	settings.set_size({"terminator" => 3, "transmission" => 3, "hexchat" => 3, "geany" => 2, "nvidia-settings" => 2, "nemo" => 3})
+	settings.set_size({"terminator" => 3, "transmission-gtk" => 3, "hexchat" => 3, "geany" => 2, "nvidia-settings" => 2, "nemo" => 3})
 
 	monitors = Monitor.get_monitors()
 
@@ -260,7 +260,7 @@ def get_window_priority(high_priority_windows, low_priority_windows, w, reverse_
 		if high_priority_windows.include?(class_name)
 			prio = high_priority_windows.index(class_name)
 		elsif low_priority_windows.include?(class_name)
-			prio = high_priority_windows.size + low_priority_windows.index(class_name)
+			prio = high_priority_windows.size + 1 + low_priority_windows.index(class_name)
 		end
 		criteria << prio
 		criteria << 0
