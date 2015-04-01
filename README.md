@@ -1,5 +1,9 @@
 Ruby script for tiling and window placement.
 
+##Demo using Openbox
+
+![Demo](http://abload.de/img/tile_demo77umj.gif)
+
 ##Modes
 
 ###xh_tile.rb --all
@@ -44,15 +48,9 @@ show version
 -xrandr
 
 
-##Demo using Openbox
-
-![Demo](http://abload.de/img/tile_demo77umj.gif)
-
-
 ##Example keybindings for Openbox using the keypad
 
-```
-<keybind key="C-W-KP_8">
+```<keybind key="C-W-KP_8">
 	<action name="Execute">
 		<command>xh_tile.rb --split-up</command>
 	</action>
@@ -137,6 +135,4 @@ show version
 	<action name="Execute">
 		<command>xh_tile.rb br</command>
 	</action>
-</keybind>
-
-```
+</keybind>```
