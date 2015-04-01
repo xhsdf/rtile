@@ -50,7 +50,8 @@ show version
 
 ##Example keybindings for Openbox using the keypad
 
-```<keybind key="C-W-KP_8">
+```
+<keybind key="C-W-KP_8">
 	<action name="Execute">
 		<command>xh_tile.rb --split-up</command>
 	</action>
@@ -135,4 +136,5 @@ show version
 	<action name="Execute">
 		<command>xh_tile.rb br</command>
 	</action>
-</keybind>```
+</keybind>
+```
