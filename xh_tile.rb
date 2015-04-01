@@ -4,7 +4,7 @@
 # requires: xprop, wmctrl, xwininfo, xrandr
 
 NAME = "xh_tile"
-VERSION = "1.67"
+VERSION = "1.68"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -15,32 +15,18 @@ end
 def main()
 	settings = Settings.new
 	settings.set_medians({0 => 0.583, 3 => 0.583, 4 => 0.417})
-	settings.set_reverse_x([4]) #ids of workspaces where windows should be places from right to left
-	settings.set_reverse_y([]) #ids of workspaces where windows should be places from bottom to top
+	settings.set_reverse_x(4) #ids of workspaces where windows should be places from right to left
+	settings.set_reverse_y() #ids of workspaces where windows should be places from bottom to top
 	settings.set_gaps({:top => 42, :bottom => 22, :left => 22, :right => 22, :windows_x => 22, :windows_y => 22})
 	settings.set_floating("mpv")
 	# high priority windows get placed first
 	settings.set_high_priority_windows("firefox", "geany")
-	# low priority windows get placed last. even after fake windows (see set_size())
+	# low priority windows get placed last. even after fake windows
 	settings.set_low_priority_windows("transmission-gtk", "terminator", "terminal", "hexchat")
-	# pretends there are at least this many windows on the same desktop of the application
-	settings.set_size({"terminator" => 3, "transmission-gtk" => 3, "hexchat" => 3, "geany" => 2, "nvidia-settings" => 2, "nemo" => 3})
+	# pretends there are at least this many windows on the same monitor as the application
+	settings.set_fake_windows({"terminator" => 3, "transmission-gtk" => 3, "hexchat" => 3, "geany" => 2, "nvidia-settings" => 2, "nemo" => 3})
 
-	monitors = Monitor.get_monitors()
-
-	#~ windows = Window.get_windows()	
-	#~ windows.each do |w|
-		#~ puts "#{w.title}"
-		#~ puts "\tid: #{w.id}"
-		#~ puts "\tclass: #{w.class_name}"
-		#~ puts "\tpid: #{w.pid}"
-		#~ puts "\thidden: #{w.hidden}"
-		#~ puts "\tworkspace: #{w.workspace}"
-		#~ puts "\tdimensions:#{w.x},#{w.y} #{w.width}x#{w.height}"
-		#~ puts "\tdecorations: #{w.decorations[:top]} #{w.decorations[:bottom]} #{w.decorations[:left]} #{w.decorations[:right]} "
-	#~ end
-	#~ return
-	
+	monitors = Monitor.get_monitors()	
 	current_workspace = Monitor.get_current_workspace()	
 	median = settings.medians[current_workspace]
 
@@ -207,13 +193,13 @@ def tile_all(settings, windows, monitors, median, current_workspace)
 
 	monitors.each do |monitor|
 		monitor_windows = monitor_hash[monitor.name].select do |w| w.workspace == current_workspace and not w.hidden and (settings.floating.select do |i| w.class_name.downcase.include? i.downcase end).empty? end
-		sizes = [1]
+		fake_windows = [1]
 		monitor_windows.each do |w|
-			settings.size.keys.each do |p|
-				sizes << settings.size[p] if w.class_name.downcase.include? p
+			settings.fake_windows.keys.each do |p|
+				fake_windows << settings.fake_windows[p] if w.class_name.downcase.include? p
 			end
 		end		
-		[sizes.max - monitor_windows.length, 0].max.times do
+		[fake_windows.max - monitor_windows.length, 0].max.times do
 			monitor_windows << nil
 		end
 		reverse_x = settings.reverse_x.include? current_workspace
@@ -326,7 +312,7 @@ end
 
 
 class Settings
-	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :high_priority_windows, :low_priority_windows, :size
+	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :high_priority_windows, :low_priority_windows, :fake_windows
 
 	def initialize()
 		@medians = {}
@@ -336,7 +322,7 @@ class Settings
 		@floating = []
 		@high_priority_windows = []
 		@low_priority_windows = []
-		@size = []
+		@fake_windows = []
 	end
 
 	
@@ -345,12 +331,12 @@ class Settings
 	end
 
 
-	def set_reverse_x(reverse_x)
+	def set_reverse_x(*reverse_x)
 		@reverse_x = reverse_x
 	end
 
 
-	def set_reverse_y(reverse_y)
+	def set_reverse_y(*reverse_y)
 		@reverse_y = reverse_y
 	end
 
@@ -375,8 +361,8 @@ class Settings
 	end
 
 
-	def set_size(size)
-		@size = size
+	def set_fake_windows(fake_windows)
+		@fake_windows = fake_windows
 	end
 end
 
@@ -396,7 +382,9 @@ class Window # requires: wmcrtl, xprop, xwininfo
 			elsif line.include? 'WM_NAME'
 				@title = line.split('=').last.strip.tr('"', '')
 			elsif line.include? '_NET_WM_WINDOW_TYPE'
-				@ignore = !(line.split('=').last.include?('_NET_WM_WINDOW_TYPE_NORMAL'))
+				type = line.split('=').last.strip
+				#["_NET_WM_WINDOW_TYPE_DOCK", "_NET_WM_WINDOW_TYPE_TOOLBAR", "_NET_WM_WINDOW_TYPE_MENU", "_NET_WM_WINDOW_TYPE_UTILITY", "_NET_WM_WINDOW_TYPE_DIALOG"]
+				@ignore = !(type.include?('_NET_WM_WINDOW_TYPE_NORMAL') or type.include?('not found'))
 			elsif line.include? '_NET_WM_STATE'
 				@hidden = line.split('=').last.include?('_NET_WM_STATE_HIDDEN')
 			elsif line.include? 'WM_DESKTOP'
