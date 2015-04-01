@@ -384,7 +384,7 @@ class Window # requires: wmcrtl, xprop, xwininfo
 			elsif line.include? '_NET_WM_WINDOW_TYPE'
 				type = line.split('=').last.strip
 				#["_NET_WM_WINDOW_TYPE_DOCK", "_NET_WM_WINDOW_TYPE_TOOLBAR", "_NET_WM_WINDOW_TYPE_MENU", "_NET_WM_WINDOW_TYPE_UTILITY", "_NET_WM_WINDOW_TYPE_DIALOG"]
-				@ignore = !(type.include?('_NET_WM_WINDOW_TYPE_NORMAL') or type.include?('not found'))
+				@ignore = !(type == '_NET_WM_WINDOW_TYPE_NORMAL' or type.include?('not found'))
 			elsif line.include? '_NET_WM_STATE'
 				@hidden = line.split('=').last.include?('_NET_WM_STATE_HIDDEN')
 			elsif line.include? 'WM_DESKTOP'
