@@ -4,7 +4,7 @@
 # requires: xprop, wmctrl, xwininfo, xrandr
 
 NAME = "xh_tile"
-VERSION = "1.68"
+VERSION = "1.68a"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -43,7 +43,8 @@ end
 
 
 def tile_active(settings, monitors, median, args)
-	w = get_active_window()
+	window = get_active_window()
+	return if window.nil?
 	cols, rows, x, y = 1, 1, 0, 0
 	args.each do |arg|
 		arg.each_char do |c|
@@ -61,14 +62,15 @@ def tile_active(settings, monitors, median, args)
 			columns[c][r] = nil
 		end
 	end
-	columns[x][y] = w
+	columns[x][y] = window
 	
-	tile(settings, columns, get_monitor(w, monitors), median)
+	tile(settings, columns, get_monitor(window, monitors), median)
 end
 
 
 def grow_active(settings, windows, direction)
 	window = get_active_window(windows)
+	return if window.nil?
 	other_windows = windows.select do |w| window.id != w.id and w.workspace == window.workspace and not w.hidden end
 	grow(settings, window, direction, other_windows)
 end
@@ -140,6 +142,7 @@ end
 
 def split_active(settings, windows, direction)
 	window = get_active_window(windows)
+	return if window.nil?
 	same_pos_windows = windows.select do |w| have_same_pos(window, w) and not window.id == w.id and w.workspace == window.workspace and not w.hidden end
 	split(settings, window, direction, same_pos_windows)
 end
@@ -261,10 +264,14 @@ end
 
 def get_active_window(windows = nil)
 	active_id = Window.get_active_window_id()
-	if windows.nil?
-		return Window.new(active_id)
+	if active_id == '0x0'
+		return nil
 	else
-		return windows.select do |w| w.id.hex == active_id.hex end.first
+		if windows.nil?
+			return Window.new(active_id)
+		else
+			return windows.select do |w| w.id.hex == active_id.hex end.first
+		end
 	end
 end
 
