@@ -4,7 +4,7 @@
 # requires: xprop, wmctrl, xwininfo, xrandr
 
 NAME = "xh_tile"
-VERSION = "1.68a"
+VERSION = "1.69"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -27,7 +27,7 @@ def main()
 	settings.set_fake_windows({"terminator" => 3, "transmission-gtk" => 3, "hexchat" => 3, "geany" => 2, "nvidia-settings" => 2, "nemo" => 3})
 
 	monitors = Monitor.get_monitors()	
-	current_workspace = Monitor.get_current_workspace()	
+	current_workspace = Monitor.get_current_workspace()
 	median = settings.medians[current_workspace]
 
 	if ARGV.include? "--all"
@@ -502,7 +502,7 @@ class Monitor # requires: xrandr
 
 
 	def self.get_current_workspace()
-		return `xprop -root | grep _NET_CURRENT_DESKTOP\\(CARDINAL\\)`.to_s[/(?<== )\d+/].to_i
+		return `xprop -root _NET_CURRENT_DESKTOP`.to_s.split('=').last.strip.to_i
 	end
 
 
