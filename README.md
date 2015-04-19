@@ -2,7 +2,7 @@ Ruby script for tiling and window placement.
 
 ##Demo using Openbox
 
-![Demo](http://abload.de/img/tile_demo77umj.gif)
+![Demo](http://i.imgur.com/4VgLJBn.gif)
 
 ##Modes
 
