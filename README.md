@@ -12,15 +12,15 @@ tile all windows on screen
 
 ###xh_tile.rb (t|b|l|r|tl|tr|bl|br)
 
-move window to edges (left, top-left, top, top-right, etc.)
+move active window to edges (left, top-left, top, top-right, etc.)
 
 ###xh_tile.rb --split-(up|down|left|right)
 
-split windows (either in half or using all windows occupying the same space)
+split active window (either in half or using all windows occupying the same space)
 
 ###xh_tile.rb --grow-(up|down|left|right)
 
-grow windows to the nearest edge (window or screen) of a direction
+grow active window to the nearest edge (window or screen) of a direction
 
 ###xh_tile.rb --version
 
