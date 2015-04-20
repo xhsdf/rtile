@@ -50,7 +50,7 @@ show version
 
 ##Tile automatically when a new window is opened
 
-```xprop -spy -root _NET_CLIENT_LIST | grep --line-buffered _NET_CLIENT_LIST\(WINDOW\) | while read windows ; do if [ "$old_windows" != "$windows" ] ; then old_windows=$windows && xh_tile.rb --all ; fi ; done```
+```xprop -spy -root _NET_CLIENT_LIST | while read windows ; do if [ "$old_windows" != "$windows" ] ; then old_windows=$windows && xh_tile.rb --all ; fi ; done```
 
 
 ##Example keybindings for Openbox using the keypad
