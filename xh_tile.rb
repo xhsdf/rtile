@@ -4,7 +4,7 @@
 # requires: xprop, wmctrl, xwininfo, xrandr
 
 NAME = "xh_tile"
-VERSION = "1.69"
+VERSION = "1.70"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -381,7 +381,8 @@ class Window # requires: wmcrtl, xprop, xwininfo
 		@id = id
 		@decorations = Hash.new
 		@ignore = false
-		xprop = `xprop -id #{@id} WM_CLASS WM_NAME _NET_WM_STATE _NET_WM_DESKTOP _NET_WM_WINDOW_TYPE _NET_WM_PID _NET_FRAME_EXTENTS`.to_s
+		@hidden = false
+		xprop = `xprop -id #{@id} WM_CLASS WM_NAME _NET_WM_STATE WM_STATE _NET_WM_DESKTOP _NET_WM_WINDOW_TYPE _NET_WM_PID _NET_FRAME_EXTENTS`.to_s
 		
 		xprop.each_line do |line|
 			if line.include? 'WM_CLASS'
@@ -393,7 +394,9 @@ class Window # requires: wmcrtl, xprop, xwininfo
 				#["_NET_WM_WINDOW_TYPE_DOCK", "_NET_WM_WINDOW_TYPE_TOOLBAR", "_NET_WM_WINDOW_TYPE_MENU", "_NET_WM_WINDOW_TYPE_UTILITY", "_NET_WM_WINDOW_TYPE_DIALOG"]
 				@ignore = !(type == '_NET_WM_WINDOW_TYPE_NORMAL' or type.include?('not found'))
 			elsif line.include? '_NET_WM_STATE'
-				@hidden = line.split('=').last.include?('_NET_WM_STATE_HIDDEN')
+				@hidden = (@hidden or line.split('=').last.include?('_NET_WM_STATE_HIDDEN'))
+			elsif line.include? 'window state:'
+				@hidden = (@hidden or line.include?('Iconic'))
 			elsif line.include? 'WM_DESKTOP'
 				@workspace = line.split('=').last.strip.to_i
 			elsif line.include? 'NET_WM_PID'
