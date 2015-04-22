@@ -217,7 +217,7 @@ def tile_all(settings, windows, monitors, median, current_workspace)
 		main_col_rows_size.times do
 			columns[0] << remaining_windows.shift
 		end
-		columns << remaining_windows[0...remaining_windows.size] unless remaining_windows.empty?
+		columns << remaining_windows unless remaining_windows.empty?
 		columns.last.reverse! if reverse_y
 		columns.reverse! if reverse_x
 		
