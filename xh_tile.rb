@@ -4,7 +4,7 @@
 # requires: xprop, wmctrl, xwininfo, xrandr
 
 NAME = "xh_tile"
-VERSION = "1.70"
+VERSION = "1.71"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -210,15 +210,14 @@ def tile_all(settings, windows, monitors, median, current_workspace)
 		
 		monitor_windows.sort_by! do |w| get_window_priority(settings.high_priority_windows, settings.low_priority_windows, w, reverse_x, reverse_y) end
 
-		max_vert_windows = 3
 		remaining_windows = monitor_windows.clone
 		columns = [[]]
 		
-		main_col_rows_size = monitor_windows.size > max_vert_windows + 1 ? 2 : 1
+		main_col_rows_size = monitor_windows.size > 4 ? 2 : 1
 		main_col_rows_size.times do
 			columns[0] << remaining_windows.shift
 		end
-		columns << remaining_windows[0...[max_vert_windows, remaining_windows.size].min] unless remaining_windows.empty?
+		columns << remaining_windows[0...remaining_windows.size] unless remaining_windows.empty?
 		columns.last.reverse! if reverse_y
 		columns.reverse! if reverse_x
 		
