@@ -3,8 +3,13 @@
 
 # requires: xprop, wmctrl, xwininfo, xrandr
 
+require 'fileutils'
+require 'rexml/document'
+include REXML
+
+
 NAME = "xh_tile"
-VERSION = "1.71"
+VERSION = "1.72"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -13,18 +18,7 @@ end
 
 
 def main()
-	settings = Settings.new
-	settings.set_medians({0 => 0.583, 3 => 0.583, 4 => 0.417}) #assign medians to workspace ids. default is 0.5
-	settings.set_reverse_x(4) #ids of workspaces where windows should be places from right to left
-	settings.set_reverse_y() #ids of workspaces where windows should be places from bottom to top
-	settings.set_gaps({:top => 42, :bottom => 22, :left => 22, :right => 22, :windows_x => 22, :windows_y => 22})
-	settings.set_floating("mpv")
-	# high priority windows get placed first
-	settings.set_high_priority_windows("firefox", "geany")
-	# low priority windows get placed last. even after fake windows
-	settings.set_low_priority_windows("transmission-gtk", "terminator", "terminal", "hexchat")
-	# pretends there are at least this many windows on the same monitor as the application
-	settings.set_fake_windows({"terminator" => 3, "transmission-gtk" => 3, "hexchat" => 3, "geany" => 2, "nvidia-settings" => 2, "nemo" => 3})
+	settings = Settings.new("#{ENV['HOME']}/.config/xh_tile/xh_tile.xml")
 
 	monitors = Monitor.get_monitors()	
 	current_workspace = Monitor.get_current_workspace()
@@ -320,7 +314,7 @@ end
 class Settings
 	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :high_priority_windows, :low_priority_windows, :fake_windows
 
-	def initialize()
+	def initialize(config_file = nil)
 		@medians = {}
 		@reverse_x = []
 		@reverse_y = []
@@ -328,7 +322,53 @@ class Settings
 		@floating = []
 		@high_priority_windows = []
 		@low_priority_windows = []
-		@fake_windows = []
+		@fake_windows = {}
+
+		return if config_file.nil?
+
+		unless File.exists?(config_file)
+			FileUtils.mkdir_p(File.dirname(config_file))
+			xml_file = File.new(config_file, 'w')
+			xml_file.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings>\n	<gaps top=\"42\" bottom=\"22\" left=\"22\" right=\"22\" windows_x=\"22\" windows_y=\"22\"/>\n	<!--<workspace id=\"<id>\" median=\"0.6\" reverse_x=\"true|false\" reverse_y=\"true|false\"/>-->\n	<workspace id=\"0\" median=\"0.583\"/>\n	<workspace id=\"1\"/>\n	<workspace id=\"2\"/>\n	<workspace id=\"3\" median=\"0.583\"/>\n	<workspace id=\"4\" reverse_x=\"true\" median=\"0.417\"/>\n\n	<!--\n		fake_windows: pretends there are at least this many windows on the same monitor as the application\n		priority=\"high\": high priority windows get placed first\n		priority=\"low\": low priority windows get placed last. even after fake windows\n	-->\n	<!--<window class=\"<class>\" priority=\"high|low\" floating=\"true|false\" fake_windows=\"1|2|3|...\"/>-->\n	<window class=\"mpv\" floating=\"true\"/>\n\n	<window class=\"firefox\" priority=\"high\"/>\n	<window class=\"geany\" priority=\"high\" fake_windows=\"2\"/>\n\n	<window class=\"nemo\" fake_windows=\"3\"/>\n	<window class=\"nvidia-settings\" fake_windows=\"2\"/>\n\n	<window class=\"transmission-gtk\" priority=\"low\" fake_windows=\"3\"/>\n	<window class=\"terminator\" priority=\"low\" fake_windows=\"3\"/>\n	<window class=\"terminal\" priority=\"low\" fake_windows=\"3\"/>\n	<window class=\"hexchat\" priority=\"low\" fake_windows=\"3\"/>\n</settings>")
+			xml_file.close
+		end
+
+		xml_file = File.new(config_file)
+		xml_doc = Document.new(xml_file)		
+		xml_doc.elements["settings"].elements.each do |el|
+			if el.name == 'gaps'
+				@gaps[:top] = el.attributes["top"].to_i
+				@gaps[:bottom] = el.attributes["bottom"].to_i
+				@gaps[:left] = el.attributes["left"].to_i
+				@gaps[:right] = el.attributes["right"].to_i
+				@gaps[:windows_x] = el.attributes["windows_x"].to_i
+				@gaps[:windows_y] = el.attributes["windows_y"].to_i
+			elsif el.name == 'workspace'
+				workspace_id = el.attributes["id"]
+				unless el.attributes["median"].nil?
+					@medians[workspace_id] = el.attributes["median"].to_f
+				end
+				if el.attributes["reverse_x"] == 'true'
+					@reverse_x << workspace_id
+				end
+				if el.attributes["reverse_y"] == 'true'
+					@reverse_y << workspace_id
+				end
+			elsif el.name == 'window'
+				window_class = el.attributes["class"]
+				if el.attributes["floating"] == 'true'
+					@floating << window_class
+				end
+				if el.attributes["priority"] == 'high'
+					@high_priority_windows << window_class
+				elsif el.attributes["priority"] == 'low'
+					@low_priority_windows << window_class
+				end
+				unless el.attributes["fake_windows"].nil?
+					@fake_windows[window_class] = el.attributes["fake_windows"].to_i
+				end
+			end
+		end
 	end
 
 	
@@ -395,7 +435,7 @@ class Window # requires: wmcrtl, xprop, xwininfo
 			elsif line.include? '_NET_WM_STATE'
 				@hidden = line.split('=').last.include?('_NET_WM_STATE_HIDDEN')
 			elsif line.include? 'WM_DESKTOP'
-				@workspace = line.split('=').last.strip.to_i
+				@workspace = line.split('=').last.strip
 			elsif line.include? 'NET_WM_PID'
 				@pid = line.split('=').last.strip.to_i
 			elsif line.include? '_NET_FRAME_EXTENTS'
@@ -502,7 +542,7 @@ class Monitor # requires: xrandr
 
 
 	def self.get_current_workspace()
-		return `xprop -root _NET_CURRENT_DESKTOP`.to_s.split('=').last.strip.to_i
+		return `xprop -root _NET_CURRENT_DESKTOP`.to_s.split('=').last.strip
 	end
 
 
