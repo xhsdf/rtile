@@ -434,9 +434,9 @@ class Window # requires: wmcrtl, xprop, xwininfo
 				@ignore = !(type == '_NET_WM_WINDOW_TYPE_NORMAL' or type.include?('not found'))
 			elsif line.include? '_NET_WM_STATE'
 				@hidden = line.split('=').last.include?('_NET_WM_STATE_HIDDEN')
-			elsif line.include? 'WM_DESKTOP'
+			elsif line.include? '_NET_WM_DESKTOP'
 				@workspace = line.split('=').last.strip
-			elsif line.include? 'NET_WM_PID'
+			elsif line.include? '_NET_WM_PID'
 				@pid = line.split('=').last.strip.to_i
 			elsif line.include? '_NET_FRAME_EXTENTS'
 				@decorations[:left], decorations[:right], decorations[:top], decorations[:bottom] = line.split('=').last.strip.split(",").collect do |i| i.strip.to_i end
