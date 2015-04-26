@@ -10,6 +10,10 @@ Ruby script for tiling and window placement.
 
 tile all windows on screen
 
+###xh_tile.rb --all-auto
+
+automatically tile all windows on screen when a new window is opened or closed
+
 ###xh_tile.rb (t|b|l|r|tl|tr|bl|br)
 
 move active window to edges (left, top-left, top, top-right, etc.)
@@ -48,9 +52,36 @@ show version
 -xrandr
 
 
-##Tile automatically when a new window is opened
+##Example config file
 
-```xprop -spy -root _NET_CLIENT_LIST | while read windows ; do if [ "$old_windows" != "$windows" ] ; then old_windows=$windows && xh_tile.rb --all ; fi ; done```
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<settings>
+	<gaps top="42" bottom="22" left="22" right="22" windows_x="22" windows_y="22"/>
+	<!--<workspace id="<id>" median="0.6" reverse_x="true|false" reverse_y="true|false"/>-->
+	<workspace id="0" median="0.6"/>
+	<workspace id="1"/>
+	<workspace id="2"/>
+	<workspace id="3" median="0.6"/>
+	<workspace id="4" reverse_x="true" median="0.4"/>
+
+	<!--
+		fake_windows: pretends there are at least this many windows on the same monitor as the application
+		priority="high": high priority windows get placed first
+		priority="low": low priority windows get placed last. even after fake windows
+	-->
+	<!--<window class="<class>" priority="high|low" floating="true|false" fake_windows="1|2|3|..."/>-->
+	<window class="mpv" floating="true"/>
+
+	<window class="firefox" priority="high"/>
+	<window class="geany" priority="high" fake_windows="2"/>
+
+	<window class="nemo" fake_windows="3"/>
+
+	<window class="transmission-gtk" priority="low" fake_windows="3"/>
+	<window class="terminator" priority="low" fake_windows="3"/>
+</settings>
+```
 
 
 ##Example keybindings for Openbox using the keypad

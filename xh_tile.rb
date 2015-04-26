@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "xh_tile"
-VERSION = "1.72"
+VERSION = "1.73"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -20,23 +20,22 @@ end
 def main()
 	settings = Settings.new("#{ENV['HOME']}/.config/xh_tile/xh_tile.xml")
 
-	monitors = Monitor.get_monitors()	
-	current_workspace = Monitor.get_current_workspace()
-	median = settings.medians[current_workspace]
-
 	if ARGV.include? "--all"
-		tile_all(settings, Window.get_windows(), monitors, median, current_workspace)
+		tile_all(settings, Window.get_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
+	elsif ARGV.include? "--all-auto"
+		auto_tile_all(settings)	
 	elsif not (split = ARGV.grep(/--split-(up|down|left|right)/)).empty?
 		split_active(settings, Window.get_windows(), split.first.gsub(/^--split-/, ''))
 	elsif not (grow = ARGV.grep(/--grow-(up|down|left|right)/)).empty?
 		grow_active(settings, Window.get_windows(), grow.first.gsub(/^--grow-/, ''))
 	else
-		tile_active(settings, monitors, median, ARGV.select do |arg| arg =~ /^(l|r|t|b)+$/ end)
+		tile_active(settings, Monitor.get_monitors(), Monitor.get_current_workspace(), ARGV.select do |arg| arg =~ /^(l|r|t|b)+$/ end)
 	end
 end
 
 
-def tile_active(settings, monitors, median, args)
+def tile_active(settings, monitors, current_workspace, args)
+	median = settings.medians[current_workspace]
 	window = get_active_window()
 	return if window.nil?
 	cols, rows, x, y = 1, 1, 0, 0
@@ -178,7 +177,18 @@ def split(settings, window, direction, same_pos_windows = [nil])
 end
 
 
-def tile_all(settings, windows, monitors, median, current_workspace)
+def auto_tile_all(settings)
+	require 'pty'
+	PTY.spawn( "xprop -spy -root _NET_CLIENT_LIST" ) do |stdout, stdin, pid|
+		stdout.each do |line|
+			tile_all(settings, Window.get_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
+		end
+	end
+end
+
+
+def tile_all(settings, windows, monitors, current_workspace)
+	median = settings.medians[current_workspace]
 	monitor_hash = {}
 	monitors.each do |m|
 		monitor_hash[m.name] = []
@@ -189,7 +199,7 @@ def tile_all(settings, windows, monitors, median, current_workspace)
 	end
 
 	monitors.each do |monitor|
-		monitor_windows = monitor_hash[monitor.name].select do |w| w.workspace == current_workspace and not w.hidden and (settings.floating.select do |i| w.class_name.downcase.include? i.downcase end).empty? end
+		monitor_windows = monitor_hash[monitor.name].select do |w| w.workspace == current_workspace and not w.hidden and not w.fullscreen and (settings.floating.select do |i| w.class_name.downcase.include? i.downcase end).empty? end
 		fake_windows = [1]
 		monitor_windows.each do |w|
 			settings.fake_windows.keys.each do |p|
@@ -329,7 +339,7 @@ class Settings
 		unless File.exists?(config_file)
 			FileUtils.mkdir_p(File.dirname(config_file))
 			xml_file = File.new(config_file, 'w')
-			xml_file.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings>\n	<gaps top=\"42\" bottom=\"22\" left=\"22\" right=\"22\" windows_x=\"22\" windows_y=\"22\"/>\n	<!--<workspace id=\"<id>\" median=\"0.6\" reverse_x=\"true|false\" reverse_y=\"true|false\"/>-->\n	<workspace id=\"0\" median=\"0.583\"/>\n	<workspace id=\"1\"/>\n	<workspace id=\"2\"/>\n	<workspace id=\"3\" median=\"0.583\"/>\n	<workspace id=\"4\" reverse_x=\"true\" median=\"0.417\"/>\n\n	<!--\n		fake_windows: pretends there are at least this many windows on the same monitor as the application\n		priority=\"high\": high priority windows get placed first\n		priority=\"low\": low priority windows get placed last. even after fake windows\n	-->\n	<!--<window class=\"<class>\" priority=\"high|low\" floating=\"true|false\" fake_windows=\"1|2|3|...\"/>-->\n	<window class=\"mpv\" floating=\"true\"/>\n\n	<window class=\"firefox\" priority=\"high\"/>\n	<window class=\"geany\" priority=\"high\" fake_windows=\"2\"/>\n\n	<window class=\"nemo\" fake_windows=\"3\"/>\n	<window class=\"nvidia-settings\" fake_windows=\"2\"/>\n\n	<window class=\"transmission-gtk\" priority=\"low\" fake_windows=\"3\"/>\n	<window class=\"terminator\" priority=\"low\" fake_windows=\"3\"/>\n	<window class=\"terminal\" priority=\"low\" fake_windows=\"3\"/>\n	<window class=\"hexchat\" priority=\"low\" fake_windows=\"3\"/>\n</settings>")
+			xml_file.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings>\n	<gaps top=\"42\" bottom=\"22\" left=\"22\" right=\"22\" windows_x=\"22\" windows_y=\"22\"/>\n	<!--<workspace id=\"<id>\" median=\"0.6\" reverse_x=\"true|false\" reverse_y=\"true|false\"/>-->\n	<workspace id=\"0\" median=\"0.6\"/>\n	<workspace id=\"1\"/>\n	<workspace id=\"2\"/>\n	<workspace id=\"3\" median=\"0.6\"/>\n	<workspace id=\"4\" reverse_x=\"true\" median=\"0.4\"/>\n\n	<!--\n		fake_windows: pretends there are at least this many windows on the same monitor as the application\n		priority=\"high\": high priority windows get placed first\n		priority=\"low\": low priority windows get placed last. even after fake windows\n	-->\n	<!--<window class=\"<class>\" priority=\"high|low\" floating=\"true|false\" fake_windows=\"1|2|3|...\"/>-->\n	<window class=\"mpv\" floating=\"true\"/>\n\n	<window class=\"firefox\" priority=\"high\"/>\n	<window class=\"geany\" priority=\"high\" fake_windows=\"2\"/>\n\n	<window class=\"nemo\" fake_windows=\"3\"/>\n\n	<window class=\"transmission-gtk\" priority=\"low\" fake_windows=\"3\"/>\n	<window class=\"terminator\" priority=\"low\" fake_windows=\"3\"/>\n\n</settings>")
 			xml_file.close
 		end
 
@@ -414,13 +424,14 @@ end
 
 
 class Window # requires: wmcrtl, xprop, xwininfo
-	attr_reader :id, :title, :class_name, :workspace, :x, :y, :width, :height, :pid, :hidden, :decorations, :ignore
+	attr_reader :id, :title, :class_name, :workspace, :x, :y, :width, :height, :pid, :hidden, :fullscreen, :decorations, :ignore
 
 	def initialize(id)
 		@id = id
 		@decorations = Hash.new
 		@ignore = false
 		@hidden = false
+		@fullscreen = false
 		xprop = `xprop -id #{@id} WM_CLASS WM_NAME _NET_WM_STATE _NET_WM_DESKTOP _NET_WM_WINDOW_TYPE _NET_WM_PID _NET_FRAME_EXTENTS`.to_s
 		
 		xprop.each_line do |line|
@@ -434,6 +445,7 @@ class Window # requires: wmcrtl, xprop, xwininfo
 				@ignore = !(type == '_NET_WM_WINDOW_TYPE_NORMAL' or type.include?('not found'))
 			elsif line.include? '_NET_WM_STATE'
 				@hidden = line.split('=').last.include?('_NET_WM_STATE_HIDDEN')
+				@fullscreen = line.split('=').last.include?('_NET_WM_STATE_FULLSCREEN')
 			elsif line.include? '_NET_WM_DESKTOP'
 				@workspace = line.split('=').last.strip
 			elsif line.include? '_NET_WM_PID'
