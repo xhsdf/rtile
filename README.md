@@ -1,36 +1,36 @@
 Ruby script for tiling and window placement.
 
-##Demo using Openbox
+#Demo using Openbox
 
 ![Demo](http://i.imgur.com/4VgLJBn.gif)
 
-##Modes
+#Modes
 
-###xh_tile.rb --all
+##xh_tile.rb --all
 
 tile all windows on screen
 
-###xh_tile.rb --all-auto
+##xh_tile.rb --all-auto
 
 automatically tile all windows on screen when a new window is opened or closed
 
-###xh_tile.rb (t|b|l|r|tl|tr|bl|br)
+##xh_tile.rb (t|b|l|r|tl|tr|bl|br)
 
 move active window to edges (left, top-left, top, top-right, etc.)
 
-###xh_tile.rb --split-(up|down|left|right)
+##xh_tile.rb --split-(up|down|left|right)
 
 split active window (either in half or using all windows occupying the same space)
 
-###xh_tile.rb --grow-(up|down|left|right)
+##xh_tile.rb --grow-(up|down|left|right)
 
 grow active window to the nearest edge (window or screen) of a direction
 
-###xh_tile.rb --version
+##xh_tile.rb --version
 
 show version
 
-##Features
+#Features
 
 -gaps between windows in all operating modes
 
@@ -41,7 +41,7 @@ show version
 -setting for which windows to ignore when auto-tiling
 
 
-##Dependencies
+#Dependencies
 
 -xprop
 
@@ -52,39 +52,80 @@ show version
 -xrandr
 
 
-##Example config file
+#Settings
+
+When xh_tile is run it will look for a config file in $HOME/.config/xh_tile/xh_tile.xml. If it does not exist it will be generated.
+
+##Gap settings
+
+###top, bottom, left, right
+space between windows and screen edges
+
+###windows_x
+horizontal space between windows
+
+###windows_y
+vertical space between windows
+
+
+##Workspace settings
+Workspace settings are only relevant for automatic tiling. Except for median
+
+###id
+Id of the workspace
+
+###median
+Determines how much width the main window takes up  
+default = 0.5
+
+###reverse_x
+`true`: the main window is placed on the right
+
+###reverse_y
+`true`: windows are placed from the bottom up
+
+##Window settings
+Window settings are only relevant for automatic tiling
+
+###class
+Window class (e.g. "firefox" or "mpv")
+
+###priority
+`high`: High priority windows get placed first  
+`low`: Low priority windows get placed last. Even after fake windows
+
+###fake_windows
+Pretends that there are at least this many windows on the same monitor as the application  
+Example 1: `fake_windows="2"` will make the window never take up the whole desktop even if it is the only window on screen  
+Example 2: `priority="low" fake_windows="3"` will place a window on the bottom right of the desktop even if it is the only window on screen
+
+###floating
+`true`: window will be ignored
+
+##Example config
 
 ```
 <?xml version="1.0" encoding="UTF-8"?>
 <settings>
 	<gaps top="42" bottom="22" left="22" right="22" windows_x="22" windows_y="22"/>
-	<!--<workspace id="<id>" median="0.6" reverse_x="true|false" reverse_y="true|false"/>-->
+
 	<workspace id="0" median="0.6"/>
 	<workspace id="1"/>
 	<workspace id="2"/>
 	<workspace id="3" median="0.6"/>
 	<workspace id="4" reverse_x="true" median="0.4"/>
 
-	<!--
-		fake_windows: pretends there are at least this many windows on the same monitor as the application
-		priority="high": high priority windows get placed first
-		priority="low": low priority windows get placed last. even after fake windows
-	-->
-	<!--<window class="<class>" priority="high|low" floating="true|false" fake_windows="1|2|3|..."/>-->
 	<window class="mpv" floating="true"/>
-
 	<window class="firefox" priority="high"/>
 	<window class="geany" priority="high" fake_windows="2"/>
-
 	<window class="nemo" fake_windows="3"/>
-
 	<window class="transmission-gtk" priority="low" fake_windows="3"/>
 	<window class="terminator" priority="low" fake_windows="3"/>
 </settings>
 ```
 
 
-##Example keybindings for Openbox using the keypad
+#Example keybindings for Openbox using the keypad
 
 ```
 <keybind key="C-W-KP_8">
