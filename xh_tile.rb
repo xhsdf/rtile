@@ -339,7 +339,7 @@ class Settings
 		unless File.exists?(config_file)
 			FileUtils.mkdir_p(File.dirname(config_file))
 			xml_file = File.new(config_file, 'w')
-			xml_file.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings>\n	<gaps top=\"42\" bottom=\"22\" left=\"22\" right=\"22\" windows_x=\"22\" windows_y=\"22\"/>\n	<!--<workspace id=\"<id>\" median=\"0.6\" reverse_x=\"true|false\" reverse_y=\"true|false\"/>-->\n	<workspace id=\"0\" median=\"0.6\"/>\n	<workspace id=\"1\"/>\n	<workspace id=\"2\"/>\n	<workspace id=\"3\" median=\"0.6\"/>\n	<workspace id=\"4\" reverse_x=\"true\" median=\"0.4\"/>\n\n	<!--\n		fake_windows: pretends there are at least this many windows on the same monitor as the application\n		priority=\"high\": high priority windows get placed first\n		priority=\"low\": low priority windows get placed last. even after fake windows\n	-->\n	<!--<window class=\"<class>\" priority=\"high|low\" floating=\"true|false\" fake_windows=\"1|2|3|...\"/>-->\n	<window class=\"mpv\" floating=\"true\"/>\n\n	<window class=\"firefox\" priority=\"high\"/>\n	<window class=\"geany\" priority=\"high\" fake_windows=\"2\"/>\n\n	<window class=\"nemo\" fake_windows=\"3\"/>\n\n	<window class=\"transmission-gtk\" priority=\"low\" fake_windows=\"3\"/>\n	<window class=\"terminator\" priority=\"low\" fake_windows=\"3\"/>\n\n</settings>")
+			xml_file.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings>\n	<gaps top=\"42\" bottom=\"22\" left=\"22\" right=\"22\" windows_x=\"22\" windows_y=\"22\"/>\n\n	<!--<workspace id=\"<id>\" median=\"0.5\" reverse_x=\"true|false\" reverse_y=\"true|false\"/>-->\n\n	<!--<window class=\"<class>\" priority=\"high|low\" floating=\"true|false\" fake_windows=\"1|2|3|...\"/>-->\n</settings>")
 			xml_file.close
 		end
 
