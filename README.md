@@ -28,11 +28,19 @@ grow active window to the nearest edge (window or screen) of a direction
 
 ##xh_tile.rb --binary
 
-splits the last two active windows at the position of the older window
+split the last two active windows at the position of the older window
 
 ##xh_tile.rb --binary-auto
 
 automatically use binary tiling when a new window is opened
+
+##xh_tile.rb --swap
+
+swap the position of the last two active windows
+
+##xh_tile.rb --cycle
+
+cycle the positions of all windows on screen
 
 ##xh_tile.rb --version
 
@@ -156,6 +164,11 @@ Example 2: `priority="low" fake_windows="3"` will place a window on the bottom r
 		<command>xh_tile.rb --split-right</command>
 	</action>
 </keybind>
+<keybind key="C-W-KP_0">
+	<action name="Execute">
+		<command>xh_tile.rb --swap</command>
+	</action>
+</keybind>
 
 <keybind key="S-W-KP_8">
 	<action name="Execute">
@@ -175,6 +188,11 @@ Example 2: `priority="low" fake_windows="3"` will place a window on the bottom r
 <keybind key="S-W-KP_6">
 	<action name="Execute">
 		<command>xh_tile.rb --grow-right</command>
+	</action>
+</keybind>
+<keybind key="S-W-KP_0">
+	<action name="Execute">
+		<command>xh_tile.rb --cycle</command>
 	</action>
 </keybind>
 

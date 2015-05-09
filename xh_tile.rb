@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "xh_tile"
-VERSION = "1.74"
+VERSION = "1.75"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -28,6 +28,12 @@ def main()
 		binary(settings, Window.get_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
 	elsif ARGV.include? "--binary-auto"
 		auto_tile_all(settings, true)
+	elsif ARGV.include? "--swap"
+		swap(settings, Window.get_windows(), Monitor.get_current_workspace())
+	elsif ARGV.include? "--swap-biggest"
+		swap_biggest(settings, Window.get_windows(), Monitor.get_current_workspace())
+	elsif ARGV.include? "--cycle"
+		cycle(settings, Window.get_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
 	elsif not (split = ARGV.grep(/--split-(up|down|left|right)/)).empty?
 		split_active(settings, Window.get_windows(), split.first.gsub(/^--split-/, ''))
 	elsif not (grow = ARGV.grep(/--grow-(up|down|left|right)/)).empty?
@@ -70,6 +76,35 @@ def binary(settings, windows, monitors, current_workspace)
 	monitor = get_monitor(windows.last, monitors)
 	horizontal = (windows.last.width.to_f / windows.last.height.to_f) < (monitor.width.to_f / monitor.height.to_f)
 	split(settings, windows.last, horizontal ? 'up' : 'left', [windows.first])
+end
+
+
+def cycle(settings, windows, monitors, current_workspace)
+	monitor = get_monitor(get_active_window(windows), monitors)
+	windows.select! do |w| w.workspace == current_workspace and not w.hidden and monitor == get_monitor(w, monitors) end
+
+	windows.size.times do |i|
+		windows[i].resize(*(windows[(i + 1) % windows.size]).get_dimensions())
+	end
+end
+
+
+def swap(settings, windows, current_workspace)
+	windows = (windows.reverse.select do |w| w.workspace == current_workspace and not w.hidden end)[0...2]
+	swap_windows(windows.first, windows.last)
+end
+
+
+def swap_biggest(settings, windows, current_workspace)
+	active_window = windows.last
+	windows = ((windows.reverse.select do |w| w.workspace == current_workspace and not w.hidden end).sort_by do |w| w.height * w.width end).reverse[0...2]
+	swap_windows(active_window, windows.first)
+end
+
+
+def swap_windows(window1, window2)
+	window1.resize(*window2.get_dimensions())
+	window2.resize(*window1.get_dimensions())
 end
 
 
@@ -476,8 +511,13 @@ class Window # requires: wmcrtl, xprop, xwininfo
 			end
 		end
 		unless @ignore
-			get_dimensions()
+			calc_dimensions()
 		end
+	end
+	
+	
+	def get_dimensions()
+		return @x, @y, @width, @height
 	end
 	
 	
@@ -532,7 +572,7 @@ class Window # requires: wmcrtl, xprop, xwininfo
 	end
 
 
-	def get_dimensions()
+	def calc_dimensions()
 		win_info = `xwininfo -id #{@id}`
 			
 		win_info.each_line do |line|
