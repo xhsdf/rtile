@@ -26,6 +26,14 @@ split active window (either in half or using all windows occupying the same spac
 
 grow active window to the nearest edge (window or screen) of a direction
 
+##xh_tile.rb --binary
+
+splits the last two active windows at the position of the older window
+
+##xh_tile.rb --binary-auto
+
+automatically use binary tiling when a new window is opened
+
 ##xh_tile.rb --version
 
 show version
@@ -212,6 +220,11 @@ Example 2: `priority="low" fake_windows="3"` will place a window on the bottom r
 <keybind key="W-KP_3">
 	<action name="Execute">
 		<command>xh_tile.rb br</command>
+	</action>
+</keybind>
+<keybind key="W-KP_0">
+	<action name="Execute">
+		<command>xh_tile.rb --binary</command>
 	</action>
 </keybind>
 ```

@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "xh_tile"
-VERSION = "1.73"
+VERSION = "1.74"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -23,7 +23,11 @@ def main()
 	if ARGV.include? "--all"
 		tile_all(settings, Window.get_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
 	elsif ARGV.include? "--all-auto"
-		auto_tile_all(settings)	
+		auto_tile_all(settings)
+	elsif ARGV.include? "--binary"
+		binary(settings, Window.get_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
+	elsif ARGV.include? "--binary-auto"
+		auto_tile_all(settings, true)
 	elsif not (split = ARGV.grep(/--split-(up|down|left|right)/)).empty?
 		split_active(settings, Window.get_windows(), split.first.gsub(/^--split-/, ''))
 	elsif not (grow = ARGV.grep(/--grow-(up|down|left|right)/)).empty?
@@ -58,6 +62,14 @@ def tile_active(settings, monitors, current_workspace, args)
 	columns[x][y] = window
 	
 	tile(settings, columns, get_monitor(window, monitors), median)
+end
+
+
+def binary(settings, windows, monitors, current_workspace)
+	windows = (windows.reverse.select do |w| w.workspace == current_workspace and not w.hidden end)[0...2]
+	monitor = get_monitor(windows.last, monitors)
+	horizontal = (windows.last.width.to_f / windows.last.height.to_f) < (monitor.width.to_f / monitor.height.to_f)
+	split(settings, windows.last, horizontal ? 'up' : 'left', [windows.first])
 end
 
 
@@ -177,11 +189,20 @@ def split(settings, window, direction, same_pos_windows = [nil])
 end
 
 
-def auto_tile_all(settings)
+def auto_tile_all(settings, binary = false)
 	require 'pty'
+	current_windows = nil
 	PTY.spawn( "xprop -spy -root _NET_CLIENT_LIST" ) do |stdout, stdin, pid|
 		stdout.each do |line|
-			tile_all(settings, Window.get_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
+			windows = Window.get_windows()
+			if binary
+				if current_windows != nil and current_windows.length < windows.length
+					binary(settings, windows, Monitor.get_monitors(), Monitor.get_current_workspace())
+				end
+			else
+				tile_all(settings, windows, Monitor.get_monitors(), Monitor.get_current_workspace())
+			end
+			current_windows = windows
 		end
 	end
 end
@@ -472,8 +493,8 @@ class Window # requires: wmcrtl, xprop, xwininfo
 	
 	def self.get_window_ids()
 		window_ids = []
-		`xprop -root _NET_CLIENT_LIST`.to_s.each_line do |line|
-			id_string = line.gsub(/_NET_CLIENT_LIST\(WINDOW\): *window id # +/, "")
+		`xprop -root _NET_CLIENT_LIST_STACKING`.to_s.each_line do |line|
+			id_string = line.gsub(/_NET_CLIENT_LIST_STACKING\(WINDOW\): *window id # +/, "")
 			id_string.split(', ').each do |id|
 				window_ids << id.strip
 			end
