@@ -38,6 +38,10 @@ automatically use binary tiling when a new window is opened
 
 swap the position of the last two active windows
 
+##xh_tile.rb --swap-biggest
+
+swap the position of the active window with the biggest window on the same screen
+
 ##xh_tile.rb --cycle
 
 cycle the positions of all windows on screen
