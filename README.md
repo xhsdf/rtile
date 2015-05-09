@@ -6,47 +6,47 @@ Ruby script for tiling and window placement.
 
 #Modes
 
-##xh_tile.rb --all
+##--all
 
 tile all windows on screen
 
-##xh_tile.rb --all-auto
+##--all-auto
 
 automatically tile all windows on screen when a new window is opened or closed
 
-##xh_tile.rb (t|b|l|r|tl|tr|bl|br)
+##(t|b|l|r|tl|tr|bl|br)
 
 move active window to edges (left, top-left, top, top-right, etc.)
 
-##xh_tile.rb --split-(up|down|left|right)
+##--split-(up|down|left|right)
 
 split active window (either in half or using all windows occupying the same space)
 
-##xh_tile.rb --grow-(up|down|left|right)
+##--grow-(up|down|left|right)
 
 grow active window to the nearest edge (window or screen) of a direction
 
-##xh_tile.rb --binary
+##--binary
 
 split the last two active windows at the position of the older window
 
-##xh_tile.rb --binary-auto
+##--binary-auto
 
 automatically use binary tiling when a new window is opened
 
-##xh_tile.rb --swap
+##--swap
 
 swap the position of the last two active windows
 
-##xh_tile.rb --swap-biggest
+##--swap-biggest
 
 swap the position of the active window with the biggest window on the same screen
 
-##xh_tile.rb --cycle
+##--cycle
 
 cycle the positions of all windows on screen
 
-##xh_tile.rb --version
+##--version
 
 show version
 
