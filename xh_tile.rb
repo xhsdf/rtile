@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "xh_tile"
-VERSION = "1.75"
+VERSION = "1.75a"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -21,23 +21,23 @@ def main()
 	settings = Settings.new("#{ENV['HOME']}/.config/xh_tile/xh_tile.xml")
 
 	if ARGV.include? "--all"
-		tile_all(settings, Window.get_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
+		tile_all(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
 	elsif ARGV.include? "--all-auto"
 		auto_tile_all(settings)
 	elsif ARGV.include? "--binary"
-		binary(settings, Window.get_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
+		binary(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
 	elsif ARGV.include? "--binary-auto"
 		auto_tile_all(settings, true)
 	elsif ARGV.include? "--swap"
-		swap(settings, Window.get_windows(), Monitor.get_current_workspace())
+		swap(settings, Window.get_visible_windows(), Monitor.get_current_workspace())
 	elsif ARGV.include? "--swap-biggest"
-		swap_biggest(settings, Window.get_windows(), Monitor.get_current_workspace())
+		swap_biggest(settings, Window.get_visible_windows(), Monitor.get_current_workspace())
 	elsif ARGV.include? "--cycle"
-		cycle(settings, Window.get_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
+		cycle(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
 	elsif not (split = ARGV.grep(/--split-(up|down|left|right)/)).empty?
-		split_active(settings, Window.get_windows(), split.first.gsub(/^--split-/, ''))
+		split_active(settings, Window.get_visible_windows(), split.first.gsub(/^--split-/, ''))
 	elsif not (grow = ARGV.grep(/--grow-(up|down|left|right)/)).empty?
-		grow_active(settings, Window.get_windows(), grow.first.gsub(/^--grow-/, ''))
+		grow_active(settings, Window.get_visible_windows(), grow.first.gsub(/^--grow-/, ''))
 	else
 		tile_active(settings, Monitor.get_monitors(), Monitor.get_current_workspace(), ARGV.select do |arg| arg =~ /^(l|r|t|b)+$/ end)
 	end
@@ -72,7 +72,7 @@ end
 
 
 def binary(settings, windows, monitors, current_workspace)
-	windows = (windows.reverse.select do |w| w.workspace == current_workspace and not w.hidden end)[0...2]
+	windows = windows.reverse[0...2]
 	monitor = get_monitor(windows.last, monitors)
 	horizontal = (windows.last.width.to_f / windows.last.height.to_f) < (monitor.width.to_f / monitor.height.to_f)
 	split(settings, windows.last, horizontal ? 'up' : 'left', [windows.first])
@@ -81,7 +81,7 @@ end
 
 def cycle(settings, windows, monitors, current_workspace)
 	monitor = get_monitor(get_active_window(windows), monitors)
-	windows.select! do |w| w.workspace == current_workspace and not w.hidden and monitor == get_monitor(w, monitors) end
+	windows.select! do |w| monitor == get_monitor(w, monitors) end
 
 	windows.size.times do |i|
 		windows[i].resize(*(windows[(i + 1) % windows.size]).get_dimensions())
@@ -90,15 +90,15 @@ end
 
 
 def swap(settings, windows, current_workspace)
-	windows = (windows.reverse.select do |w| w.workspace == current_workspace and not w.hidden end)[0...2]
+	windows = windows.reverse[0...2]
 	swap_windows(windows.first, windows.last)
 end
 
 
 def swap_biggest(settings, windows, current_workspace)
 	active_window = windows.last
-	windows = ((windows.reverse.select do |w| w.workspace == current_workspace and not w.hidden end).sort_by do |w| w.height * w.width end).reverse[0...2]
-	swap_windows(active_window, windows.first)
+	biggest_window = (windows.sort_by do |w| w.height * w.width end).reverse.first
+	swap_windows(active_window, biggest_window)
 end
 
 
@@ -111,7 +111,7 @@ end
 def grow_active(settings, windows, direction)
 	window = get_active_window(windows)
 	return if window.nil?
-	other_windows = windows.select do |w| window.id != w.id and w.workspace == window.workspace and not w.hidden end
+	other_windows = windows.select do |w| window.id != w.id end
 	grow(settings, window, direction, other_windows)
 end
 
@@ -183,7 +183,7 @@ end
 def split_active(settings, windows, direction)
 	window = get_active_window(windows)
 	return if window.nil?
-	same_pos_windows = windows.select do |w| have_same_pos(window, w) and not window.id == w.id and w.workspace == window.workspace and not w.hidden end
+	same_pos_windows = windows.select do |w| have_same_pos(window, w) and not window.id == w.id end
 	split(settings, window, direction, same_pos_windows)
 end
 
@@ -229,7 +229,7 @@ def auto_tile_all(settings, binary = false)
 	current_windows = nil
 	PTY.spawn( "xprop -spy -root _NET_CLIENT_LIST" ) do |stdout, stdin, pid|
 		stdout.each do |line|
-			windows = Window.get_windows()
+			windows = Window.get_visible_windows()
 			if binary
 				if current_windows != nil and current_windows.length < windows.length
 					binary(settings, windows, Monitor.get_monitors(), Monitor.get_current_workspace())
@@ -255,7 +255,7 @@ def tile_all(settings, windows, monitors, current_workspace)
 	end
 
 	monitors.each do |monitor|
-		monitor_windows = monitor_hash[monitor.name].select do |w| w.workspace == current_workspace and not w.hidden and not w.fullscreen and (settings.floating.select do |i| w.class_name.downcase.include? i.downcase end).empty? end
+		monitor_windows = monitor_hash[monitor.name].select do |w| (settings.floating.select do |i| w.class_name.downcase.include? i.downcase end).empty? end
 		fake_windows = [1]
 		monitor_windows.each do |w|
 			settings.fake_windows.keys.each do |p|
@@ -521,6 +521,13 @@ class Window # requires: wmcrtl, xprop, xwininfo
 	end
 	
 	
+	def self.get_visible_windows()
+		current_workspace = Monitor.get_current_workspace()
+		windows = get_windows()
+		return (windows.select do |w| w.workspace == current_workspace and not w.hidden and not w.fullscreen end)
+	end
+	
+	
 	def self.get_windows()
 		windows = []
 		get_window_ids().each do |id|
@@ -554,7 +561,7 @@ class Window # requires: wmcrtl, xprop, xwininfo
 
 
 	def self.get_active_window_id()
-		return `xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2`.strip
+		return `xprop -root _NET_ACTIVE_WINDOW`.strip.split(' ').last
 	end
 	
 	def resize(x, y, width, height)
