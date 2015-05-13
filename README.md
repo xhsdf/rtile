@@ -1,4 +1,4 @@
-Ruby script for tiling and window placement.
+Ruby script for manual tiling and window placement.
 
 #Demo using Openbox
 
@@ -12,7 +12,7 @@ tile all windows on screen
 
 ##--all-auto
 
-automatically tile all windows on screen when a new window is opened or closed
+automatically tile all windows on screen when a new window is opened, closed or focused
 
 ##(t|b|l|r|tl|tr|bl|br)
 
@@ -29,10 +29,6 @@ grow active window to the nearest edge (window or screen) of a direction
 ##--binary
 
 split the last two active windows at the position of the older window
-
-##--binary-auto
-
-automatically use binary tiling when a new window is opened
 
 ##--swap
 

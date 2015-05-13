@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "xh_tile"
-VERSION = "1.75a"
+VERSION = "1.76"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -26,8 +26,6 @@ def main()
 		auto_tile_all(settings)
 	elsif ARGV.include? "--binary"
 		binary(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
-	elsif ARGV.include? "--binary-auto"
-		auto_tile_all(settings, true)
 	elsif ARGV.include? "--swap"
 		swap(settings, Window.get_visible_windows(), Monitor.get_current_workspace())
 	elsif ARGV.include? "--swap-biggest"
@@ -226,16 +224,13 @@ end
 
 def auto_tile_all(settings, binary = false)
 	require 'pty'
-	current_windows = nil
-	PTY.spawn( "xprop -spy -root _NET_CLIENT_LIST" ) do |stdout, stdin, pid|
+	PTY.spawn( "xprop -spy -root _NET_CLIENT_LIST_STACKING" ) do |stdout, stdin, pid|
+		current_windows = []
 		stdout.each do |line|
 			windows = Window.get_visible_windows()
-			if binary
-				if current_windows != nil and current_windows.length < windows.length
-					binary(settings, windows, Monitor.get_monitors(), Monitor.get_current_workspace())
-				end
-			else
-				tile_all(settings, windows, Monitor.get_monitors(), Monitor.get_current_workspace())
+			if current_windows.size != windows.size or current_windows.last.id != windows.last.id
+				puts "TILE"
+				tile_all(settings, windows, Monitor.get_monitors(), windows.last.workspace)
 			end
 			current_windows = windows
 		end
