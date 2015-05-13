@@ -229,7 +229,6 @@ def auto_tile_all(settings, binary = false)
 		stdout.each do |line|
 			windows = Window.get_visible_windows()
 			if current_windows.size != windows.size or current_windows.last.id != windows.last.id
-				puts "TILE"
 				tile_all(settings, windows, Monitor.get_monitors(), windows.last.workspace)
 			end
 			current_windows = windows
