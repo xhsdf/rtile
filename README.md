@@ -26,6 +26,8 @@ split active window (either in half or using all windows occupying the same spac
 
 grow active window to the nearest edge (window or screen) of a direction
 
+if the window is already at the edge of another window it will be pushed back
+
 ##--binary
 
 split the last two active windows at the position of the older window

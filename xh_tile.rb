@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "xh_tile"
-VERSION = "1.76"
+VERSION = "1.77"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -115,49 +115,78 @@ end
 
 
 def grow(settings, window, direction, other_windows)
-	if direction == 'up' or direction == 'down'
-		target_windows = other_windows.select do |w| (direction == 'up' ? (w.y + w.height < window.y) : (w.y > window.y + window.height)) and lies_between(window.x, window.x_end, w.x, w.x_end) end
-		if direction == 'up'
-			target_windows.sort_by! do |w| w.y + w.height end.reverse!
+	target_windows = other_windows.select do |w| lies_in_path(window, w, direction) end
+	edge = nil
+
+	if target_windows.empty?
+		m = get_monitor(window, Monitor.get_monitors())
+		edge = case direction
+		when 'up'    then m.y + settings.gaps[:top]
+		when 'down'  then m.y_end - settings.gaps[:bottom]
+		when 'left'  then m.x + settings.gaps[:left]
+		when 'right' then m.x_end - settings.gaps[:right]
 		else
-			target_windows.sort_by! do |w| w.y end
+			nil
 		end
-		if target_windows.empty?
-			m = get_monitor(window, Monitor.get_monitors())
+	else
+		target = get_closest_window(target_windows, direction)
+		edge = case direction
+		when 'up'    then target.y_end + settings.gaps[:windows_y]
+		when 'down'  then target.y - settings.gaps[:windows_y]
+		when 'left'  then target.x_end + settings.gaps[:windows_x]
+		when 'right' then target.x - settings.gaps[:windows_x]
 		else
-			target = target_windows.first
+			nil
 		end
-		
-		if direction == 'up'
-			y = target.nil? ? (m.y + settings.gaps[:top]) : (target.y_end + settings.gaps[:windows_y])
-			height = window.height + (window.y - y)
-			window.resize(window.x, y, window.width, height)
-		else
-			height = target.nil? ? (m.y_end - window.y - settings.gaps[:bottom]) : (target.y - window.y - settings.gaps[:windows_y])
-			window.resize(window.x, window.y, window.width, height)
-		end
-	elsif direction == 'left' or direction == 'right'
-		target_windows = other_windows.select do |w| (direction == 'left' ? (w.x + w.width < window.x) : (w.x > window.x + window.width)) and lies_between(window.y, window.y_end, w.y, w.y_end) end
-		if direction == 'left'
-			target_windows.sort_by! do |w| w.x + w.width end.reverse!
-		else
-			target_windows.sort_by! do |w| w.x end
-		end
-		if target_windows.empty?
-			m = get_monitor(window, Monitor.get_monitors())
-		else
-			target = target_windows.first
-		end
-		
-		if direction == 'left'
-			x = target.nil? ? (m.x + settings.gaps[:left]) : (target.x_end + settings.gaps[:windows_x])
-			width = window.width + (window.x - x)
-			window.resize(x, window.y, width, window.height)
-		else
-			width = target.nil? ? (m.x_end - window.x - settings.gaps[:right]) : (target.x - window.x - settings.gaps[:windows_x])
-			window.resize(window.x, window.y, width, window.height)
+
+		if ((window.x == edge or window.x_end == edge) and settings.gaps[:windows_x]) or ((window.y == edge or window.y_end == edge) and settings.gaps[:windows_y] > 0)
+			if direction == 'up'
+				edge -= settings.gaps[:windows_y]
+			elsif direction == 'down'
+				edge += settings.gaps[:windows_y]
+			elsif direction == 'left'
+				edge -= settings.gaps[:windows_x]
+			elsif direction == 'right'
+				edge += settings.gaps[:windows_x]
+			end
+			target_windows.each do |w|
+				if direction == 'up'
+					w.grow('down', edge - settings.gaps[:windows_y]) if w.y_end > edge - settings.gaps[:windows_y]
+				elsif direction == 'down'
+					w.grow('up', edge + settings.gaps[:windows_y]) if w.y < edge + settings.gaps[:windows_y]
+				elsif direction == 'left'
+					w.grow('right', edge - settings.gaps[:windows_x]) if w.x_end > edge - settings.gaps[:windows_x]
+				elsif direction == 'right'
+					w.grow('left', edge + settings.gaps[:windows_x]) if w.x < edge + settings.gaps[:windows_x]
+				end
+			end
 		end
 	end
+	window.grow(direction, edge)
+end
+
+
+def get_closest_window(windows, direction)
+	if direction == 'up'
+		windows.sort_by! do |w| w.y_end end.reverse!
+	elsif direction == 'down'
+		windows.sort_by! do |w| w.y end
+	elsif direction == 'left'
+		windows.sort_by! do |w| w.x_end end.reverse!
+	elsif direction == 'right'
+		windows.sort_by! do |w| w.x end
+	end
+	return windows.first
+end
+
+
+def lies_in_path(window, target, direction)
+	if direction == 'up' or direction == 'down'
+		return ((direction == 'up' ? (target.y + target.height <= window.y) : (target.y >= window.y + window.height)) and lies_between(window.x, window.x_end, target.x, target.x_end))
+	elsif direction == 'left' or direction == 'right'
+		return ((direction == 'left' ? (target.x + target.width <= window.x) : (target.x >= window.x + window.width)) and lies_between(window.y, window.y_end, target.y, target.y_end))
+	end
+	return false
 end
 
 
@@ -222,7 +251,7 @@ def split(settings, window, direction, same_pos_windows = [nil])
 end
 
 
-def auto_tile_all(settings, binary = false)
+def auto_tile_all(settings)
 	require 'pty'
 	PTY.spawn( "xprop -spy -root _NET_CLIENT_LIST_STACKING" ) do |stdout, stdin, pid|
 		current_windows = []
@@ -592,6 +621,29 @@ class Window # requires: wmcrtl, xprop, xwininfo
 		@y -= @decorations[:top]
 		@width += @decorations[:right] + @decorations[:left]
 		@height += @decorations[:bottom] + @decorations[:top]
+	end
+
+
+	def grow(direction, point)
+		if direction == 'up' or direction == 'down'
+			if direction == 'up'
+				y = point
+				height = @height + (@y - y)
+				self.resize(@x, y, @width, height)
+			else
+				height = point - @y
+				self.resize(@x, @y, @width, height)
+			end
+		elsif direction == 'left' or direction == 'right'
+			if direction == 'left'
+				x = point
+				width = @width + (@x - x)
+				self.resize(x, @y, width, @height)
+			else
+				width = point - @x
+				self.resize(@x, @y, width, @height)
+			end
+		end
 	end
 end
 
