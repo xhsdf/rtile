@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "xh_tile"
-VERSION = "1.77a"
+VERSION = "1.78"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -515,7 +515,9 @@ class Window # requires: wmcrtl, xprop, xwininfo
 		@ignore = false
 		@hidden = false
 		@fullscreen = false
-		xprop = `xprop -id #{@id} WM_CLASS WM_NAME _NET_WM_STATE _NET_WM_DESKTOP _NET_WM_WINDOW_TYPE _NET_WM_PID _NET_FRAME_EXTENTS`.to_s
+		@decorations[:left], decorations[:right], decorations[:top], decorations[:bottom] = 0, 0, 0, 0
+		
+		xprop = `xprop -id #{@id} WM_CLASS WM_NAME _NET_WM_ALLOWED_ACTIONS _NET_WM_STATE _NET_WM_DESKTOP _NET_WM_WINDOW_TYPE _NET_WM_PID _NET_FRAME_EXTENTS`.to_s
 		
 		xprop.each_line do |line|
 			if line.include? 'WM_CLASS'
@@ -525,16 +527,18 @@ class Window # requires: wmcrtl, xprop, xwininfo
 			elsif line.include? '_NET_WM_WINDOW_TYPE'
 				type = line.split('=').last.strip
 				#["_NET_WM_WINDOW_TYPE_DOCK", "_NET_WM_WINDOW_TYPE_TOOLBAR", "_NET_WM_WINDOW_TYPE_MENU", "_NET_WM_WINDOW_TYPE_UTILITY", "_NET_WM_WINDOW_TYPE_DIALOG"]
-				@ignore = !(type == '_NET_WM_WINDOW_TYPE_NORMAL' or type.include?('not found'))
+				@ignore = @ignore or !(type == '_NET_WM_WINDOW_TYPE_NORMAL' or type.include?('not found'))
 			elsif line.include? '_NET_WM_STATE'
 				@hidden = line.split('=').last.include?('_NET_WM_STATE_HIDDEN')
 				@fullscreen = line.split('=').last.include?('_NET_WM_STATE_FULLSCREEN')
+			elsif line.include? '_NET_WM_ALLOWED_ACTIONS'
+				@ignore = @ignore or !(line.include? '_NET_WM_ACTION_RESIZE')
 			elsif line.include? '_NET_WM_DESKTOP'
 				@workspace = line.split('=').last.strip
 			elsif line.include? '_NET_WM_PID'
 				@pid = line.split('=').last.strip.to_i
-			elsif line.include? '_NET_FRAME_EXTENTS'
-				@decorations[:left], decorations[:right], decorations[:top], decorations[:bottom] = line.split('=').last.strip.split(",").collect do |i| i.strip.to_i end
+			elsif line.include? '_NET_FRAME_EXTENTS' and not line.include? 'not found'
+				@decorations[:left], decorations[:right], decorations[:top], decorations[:bottom] = line.split('=').last.strip.split(",").collect do |i| i.strip.to_i || 0 end
 			end
 		end
 		unless @ignore
@@ -634,11 +638,6 @@ class Window # requires: wmcrtl, xprop, xwininfo
 	
 	
 	def grow(up, down, left, right)
-		up = up || 0
-		down = down || 0
-		left = left || 0
-		right = right || 0
-		
 		x = @x - left
 		width = @width + left + right
 		
