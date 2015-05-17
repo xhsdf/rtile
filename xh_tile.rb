@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "xh_tile"
-VERSION = "1.77"
+VERSION = "1.77a"
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -116,53 +116,57 @@ end
 
 def grow(settings, window, direction, other_windows)
 	target_windows = other_windows.select do |w| lies_in_path(window, w, direction) end
-	edge = nil
+	up, down, left, right = 0, 0, 0, 0
 
 	if target_windows.empty?
 		m = get_monitor(window, Monitor.get_monitors())
-		edge = case direction
-		when 'up'    then m.y + settings.gaps[:top]
-		when 'down'  then m.y_end - settings.gaps[:bottom]
-		when 'left'  then m.x + settings.gaps[:left]
-		when 'right' then m.x_end - settings.gaps[:right]
-		else
-			nil
+		case direction
+			when 'up'
+				up = window.y - m.y - settings.gaps[:top]
+			when 'down'
+				down = m.y_end - settings.gaps[:bottom] - window.y_end
+			when 'left'
+				left = window.x - m.x - settings.gaps[:left]
+			when 'right'
+				right = m.x_end - settings.gaps[:right] - window.x_end
 		end
 	else
-		target = get_closest_window(target_windows, direction)
-		edge = case direction
-		when 'up'    then target.y_end + settings.gaps[:windows_y]
-		when 'down'  then target.y - settings.gaps[:windows_y]
-		when 'left'  then target.x_end + settings.gaps[:windows_x]
-		when 'right' then target.x - settings.gaps[:windows_x]
-		else
-			nil
+		target = get_closest_window(target_windows, direction)		
+		case direction
+			when 'up'
+				up = window.y - target.y_end - settings.gaps[:windows_y]
+			when 'down'
+				down = target.y - settings.gaps[:windows_y] - window.y_end
+			when 'left'
+				left = window.x - target.x_end - settings.gaps[:windows_x]
+			when 'right'
+				right = target.x - settings.gaps[:windows_x] - window.x_end
 		end
 
-		if ((window.x == edge or window.x_end == edge) and settings.gaps[:windows_x]) or ((window.y == edge or window.y_end == edge) and settings.gaps[:windows_y] > 0)
+		if up + down + left + right == 0
 			if direction == 'up'
-				edge -= settings.gaps[:windows_y]
+				up += settings.gaps[:windows_y]
 			elsif direction == 'down'
-				edge += settings.gaps[:windows_y]
+				down += settings.gaps[:windows_y]
 			elsif direction == 'left'
-				edge -= settings.gaps[:windows_x]
+				left += settings.gaps[:windows_x]
 			elsif direction == 'right'
-				edge += settings.gaps[:windows_x]
+				right += settings.gaps[:windows_x]
 			end
 			target_windows.each do |w|
 				if direction == 'up'
-					w.grow('down', edge - settings.gaps[:windows_y]) if w.y_end > edge - settings.gaps[:windows_y]
+					w.grow(0, target.y_end - w.y_end - settings.gaps[:windows_y], 0, 0) if w.y_end > target.y_end - settings.gaps[:windows_y]
 				elsif direction == 'down'
-					w.grow('up', edge + settings.gaps[:windows_y]) if w.y < edge + settings.gaps[:windows_y]
+					w.grow(w.y - target.y - settings.gaps[:windows_y], 0, 0, 0) if w.y < target.y + settings.gaps[:windows_y]
 				elsif direction == 'left'
-					w.grow('right', edge - settings.gaps[:windows_x]) if w.x_end > edge - settings.gaps[:windows_x]
+					w.grow(0, 0, 0, target.x_end - w.x_end - settings.gaps[:windows_x]) if w.x_end > target.x_end - settings.gaps[:windows_x]
 				elsif direction == 'right'
-					w.grow('left', edge + settings.gaps[:windows_x]) if w.x < edge + settings.gaps[:windows_x]
+					w.grow(0, 0, w.x - target.x - settings.gaps[:windows_x], 0) if w.x < target.x + settings.gaps[:windows_x]
 				end
 			end
 		end
 	end
-	window.grow(direction, edge)
+	window.grow(up, down, left, right)
 end
 
 
@@ -588,6 +592,11 @@ class Window # requires: wmcrtl, xprop, xwininfo
 	end
 	
 	def resize(x, y, width, height)
+		x = x || @x
+		y = y || @y
+		width = width || @width
+		height = height || @height
+
 		width -= (@decorations[:left] + @decorations[:right])
 		height -= (@decorations[:top] + @decorations[:bottom])
 	
@@ -622,28 +631,21 @@ class Window # requires: wmcrtl, xprop, xwininfo
 		@width += @decorations[:right] + @decorations[:left]
 		@height += @decorations[:bottom] + @decorations[:top]
 	end
-
-
-	def grow(direction, point)
-		if direction == 'up' or direction == 'down'
-			if direction == 'up'
-				y = point
-				height = @height + (@y - y)
-				self.resize(@x, y, @width, height)
-			else
-				height = point - @y
-				self.resize(@x, @y, @width, height)
-			end
-		elsif direction == 'left' or direction == 'right'
-			if direction == 'left'
-				x = point
-				width = @width + (@x - x)
-				self.resize(x, @y, width, @height)
-			else
-				width = point - @x
-				self.resize(@x, @y, width, @height)
-			end
-		end
+	
+	
+	def grow(up, down, left, right)
+		up = up || 0
+		down = down || 0
+		left = left || 0
+		right = right || 0
+		
+		x = @x - left
+		width = @width + left + right
+		
+		y = @y - up
+		height = @height + up + down
+		
+		self.resize(x, y, width, height)
 	end
 end
 
