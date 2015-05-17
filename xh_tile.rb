@@ -527,12 +527,12 @@ class Window # requires: wmcrtl, xprop, xwininfo
 			elsif line.include? '_NET_WM_WINDOW_TYPE'
 				type = line.split('=').last.strip
 				#["_NET_WM_WINDOW_TYPE_DOCK", "_NET_WM_WINDOW_TYPE_TOOLBAR", "_NET_WM_WINDOW_TYPE_MENU", "_NET_WM_WINDOW_TYPE_UTILITY", "_NET_WM_WINDOW_TYPE_DIALOG"]
-				@ignore = @ignore or !(type == '_NET_WM_WINDOW_TYPE_NORMAL' or type.include?('not found'))
+				@ignore = true unless type == '_NET_WM_WINDOW_TYPE_NORMAL' or type.include?('not found')
 			elsif line.include? '_NET_WM_STATE'
 				@hidden = line.split('=').last.include?('_NET_WM_STATE_HIDDEN')
 				@fullscreen = line.split('=').last.include?('_NET_WM_STATE_FULLSCREEN')
 			elsif line.include? '_NET_WM_ALLOWED_ACTIONS'
-				@ignore = @ignore or !(line.include? '_NET_WM_ACTION_RESIZE')
+				@ignore = true unless line.include? '_NET_WM_ACTION_RESIZE'
 			elsif line.include? '_NET_WM_DESKTOP'
 				@workspace = line.split('=').last.strip
 			elsif line.include? '_NET_WM_PID'
