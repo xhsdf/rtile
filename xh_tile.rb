@@ -9,7 +9,9 @@ include REXML
 
 
 NAME = "xh_tile"
-VERSION = "1.78"
+VERSION = "1.79"
+
+GROW_PUSHBACK = 32
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -145,23 +147,23 @@ def grow(settings, window, direction, other_windows)
 
 		if up + down + left + right == 0
 			if direction == 'up'
-				up += settings.gaps[:windows_y]
+				up += GROW_PUSHBACK
 			elsif direction == 'down'
-				down += settings.gaps[:windows_y]
+				down += GROW_PUSHBACK
 			elsif direction == 'left'
-				left += settings.gaps[:windows_x]
+				left += GROW_PUSHBACK
 			elsif direction == 'right'
-				right += settings.gaps[:windows_x]
+				right += GROW_PUSHBACK
 			end
 			target_windows.each do |w|
 				if direction == 'up'
-					w.grow(0, target.y_end - w.y_end - settings.gaps[:windows_y], 0, 0) if w.y_end > target.y_end - settings.gaps[:windows_y]
+					w.grow(0, target.y_end - w.y_end - GROW_PUSHBACK, 0, 0) if w.y_end > target.y_end - GROW_PUSHBACK
 				elsif direction == 'down'
-					w.grow(w.y - target.y - settings.gaps[:windows_y], 0, 0, 0) if w.y < target.y + settings.gaps[:windows_y]
+					w.grow(w.y - target.y - GROW_PUSHBACK, 0, 0, 0) if w.y < target.y + GROW_PUSHBACK
 				elsif direction == 'left'
-					w.grow(0, 0, 0, target.x_end - w.x_end - settings.gaps[:windows_x]) if w.x_end > target.x_end - settings.gaps[:windows_x]
+					w.grow(0, 0, 0, target.x_end - w.x_end - GROW_PUSHBACK) if w.x_end > target.x_end - GROW_PUSHBACK
 				elsif direction == 'right'
-					w.grow(0, 0, w.x - target.x - settings.gaps[:windows_x], 0) if w.x < target.x + settings.gaps[:windows_x]
+					w.grow(0, 0, w.x - target.x - GROW_PUSHBACK, 0) if w.x < target.x + GROW_PUSHBACK
 				end
 			end
 		end
@@ -531,7 +533,7 @@ class Window # requires: wmcrtl, xprop, xwininfo
 			elsif line.include? '_NET_WM_STATE'
 				@hidden = line.split('=').last.include?('_NET_WM_STATE_HIDDEN')
 				@fullscreen = line.split('=').last.include?('_NET_WM_STATE_FULLSCREEN')
-			elsif line.include? '_NET_WM_ALLOWED_ACTIONS'
+			elsif line.include? '_NET_WM_ALLOWED_ACTIONS' and not line.include? 'not found'
 				@ignore = true unless line.include? '_NET_WM_ACTION_RESIZE'
 			elsif line.include? '_NET_WM_DESKTOP'
 				@workspace = line.split('=').last.strip
