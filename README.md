@@ -72,7 +72,7 @@ show version
 
 #Settings
 
-When xh_tile is run it will look for a config file in $HOME/.config/xh_tile/xh_tile.xml. If it does not exist it will be generated.
+When rtile is run it will look for a config file in $HOME/.config/rtile/rtile.xml. If it does not exist it will be generated.
 
 ##Gap settings
 
@@ -148,103 +148,103 @@ Example 2: `priority="low" fake_windows="3"` will place a window on the bottom r
 ```
 <keybind key="C-W-KP_8">
 	<action name="Execute">
-		<command>xh_tile.rb --split-up</command>
+		<command>rtile.rb --split-up</command>
 	</action>
 </keybind>
 <keybind key="C-W-KP_2">
 	<action name="Execute">
-		<command>xh_tile.rb --split-down</command>
+		<command>rtile.rb --split-down</command>
 	</action>
 </keybind>
 <keybind key="C-W-KP_4">
 	<action name="Execute">
-		<command>xh_tile.rb --split-left</command>
+		<command>rtile.rb --split-left</command>
 	</action>
 </keybind>
 <keybind key="C-W-KP_6">
 	<action name="Execute">
-		<command>xh_tile.rb --split-right</command>
+		<command>rtile.rb --split-right</command>
 	</action>
 </keybind>
 <keybind key="C-W-KP_0">
 	<action name="Execute">
-		<command>xh_tile.rb --swap</command>
+		<command>rtile.rb --swap</command>
 	</action>
 </keybind>
 
 <keybind key="S-W-KP_8">
 	<action name="Execute">
-		<command>xh_tile.rb --grow-up</command>
+		<command>rtile.rb --grow-up</command>
 	</action>
 </keybind>
 <keybind key="S-W-KP_2">
 	<action name="Execute">
-		<command>xh_tile.rb --grow-down</command>
+		<command>rtile.rb --grow-down</command>
 	</action>
 </keybind>
 <keybind key="S-W-KP_4">
 	<action name="Execute">
-		<command>xh_tile.rb --grow-left</command>
+		<command>rtile.rb --grow-left</command>
 	</action>
 </keybind>
 <keybind key="S-W-KP_6">
 	<action name="Execute">
-		<command>xh_tile.rb --grow-right</command>
+		<command>rtile.rb --grow-right</command>
 	</action>
 </keybind>
 <keybind key="S-W-KP_0">
 	<action name="Execute">
-		<command>xh_tile.rb --cycle</command>
+		<command>rtile.rb --cycle</command>
 	</action>
 </keybind>
 
 <keybind key="W-KP_8">
 	<action name="Execute">
-		<command>xh_tile.rb t</command>
+		<command>rtile.rb t</command>
 	</action>
 </keybind>
 <keybind key="W-KP_5">
 	<action name="Execute">
-		<command>xh_tile.rb</command>
+		<command>rtile.rb</command>
 	</action>
 </keybind>
 <keybind key="W-KP_2">
 	<action name="Execute">
-		<command>xh_tile.rb b</command>
+		<command>rtile.rb b</command>
 	</action>
 </keybind>
 <keybind key="W-KP_7">
 	<action name="Execute">
-		<command>xh_tile.rb tl</command>
+		<command>rtile.rb tl</command>
 	</action>
 </keybind>
 <keybind key="W-KP_4">
 	<action name="Execute">
-		<command>xh_tile.rb l</command>
+		<command>rtile.rb l</command>
 	</action>
 </keybind>
 <keybind key="W-KP_1">
 	<action name="Execute">
-		<command>xh_tile.rb bl</command>
+		<command>rtile.rb bl</command>
 	</action>
 </keybind>
 <keybind key="W-KP_9">
 	<action name="Execute">
-		<command>xh_tile.rb tr</command>
+		<command>rtile.rb tr</command>
 	</action>
 </keybind>
 <keybind key="W-KP_6"><action name="Execute">
-		<command>xh_tile.rb r</command>
+		<command>rtile.rb r</command>
 	</action>
 </keybind>
 <keybind key="W-KP_3">
 	<action name="Execute">
-		<command>xh_tile.rb br</command>
+		<command>rtile.rb br</command>
 	</action>
 </keybind>
 <keybind key="W-KP_0">
 	<action name="Execute">
-		<command>xh_tile.rb --binary</command>
+		<command>rtile.rb --binary</command>
 	</action>
 </keybind>
 ```
