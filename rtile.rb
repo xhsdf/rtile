@@ -8,7 +8,7 @@ require 'rexml/document'
 include REXML
 
 
-NAME = "xh_tile"
+NAME = "rtile"
 VERSION = "1.79"
 
 GROW_PUSHBACK = 32
@@ -20,7 +20,7 @@ end
 
 
 def main()
-	settings = Settings.new("#{ENV['HOME']}/.config/xh_tile/xh_tile.xml")
+	settings = Settings.new("#{ENV['HOME']}/.config/rtile/rtile.xml")
 
 	if ARGV.include? "--all"
 		tile_all(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
