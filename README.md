@@ -44,6 +44,10 @@ swap the position of the active window with the biggest window on the same scree
 
 cycle the positions of all windows on screen
 
+##--next-monitor
+
+move active window to the next monitor
+
 ##--version
 
 show version
@@ -169,6 +173,11 @@ Example 2: `priority="low" fake_windows="3"` will place a window on the bottom r
 <keybind key="C-W-KP_0">
 	<action name="Execute">
 		<command>rtile.rb --swap</command>
+	</action>
+</keybind>
+<keybind key="C-W-KP_5">
+	<action name="Execute">
+		<command>rtile.rb --next-monitor</command>
 	</action>
 </keybind>
 

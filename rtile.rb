@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.79"
+VERSION = "1.80"
 
 GROW_PUSHBACK = 32
 
@@ -34,6 +34,8 @@ def main()
 		swap_biggest(settings, Window.get_visible_windows(), Monitor.get_current_workspace())
 	elsif ARGV.include? "--cycle"
 		cycle(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
+	elsif ARGV.include? "--next-monitor"
+		next_monitor_active(settings, Window.get_visible_windows(), Monitor.get_monitors())
 	elsif not (split = ARGV.grep(/--split-(up|down|left|right)/)).empty?
 		split_active(settings, Window.get_visible_windows(), split.first.gsub(/^--split-/, ''))
 	elsif not (grow = ARGV.grep(/--grow-(up|down|left|right)/)).empty?
@@ -113,6 +115,29 @@ def grow_active(settings, windows, direction)
 	return if window.nil?
 	other_windows = windows.select do |w| window.id != w.id end
 	grow(settings, window, direction, other_windows)
+end
+
+
+def next_monitor_active(settings, windows, monitors)
+	window = get_active_window(windows)
+	return if window.nil?
+	move_to_next_monitor(window, monitors)
+end
+
+
+def move_to_next_monitor(window, monitors)
+	monitor = get_monitor(window, monitors)	
+	next_monitor = monitors[(monitors.index(monitor) + 1) % monitors.size]
+	
+	move_to_monitor(window, monitor, next_monitor)
+end
+
+
+def move_to_monitor(window, current_monitor, target_monitor)
+	x = window.x - current_monitor.x + target_monitor.x
+	y = window.y - current_monitor.y + target_monitor.y
+	
+	window.resize(x, y, window.width, window.height)
 end
 
 
@@ -672,6 +697,11 @@ class Monitor # requires: xrandr
 
 	def self.get_current_workspace()
 		return `xprop -root _NET_CURRENT_DESKTOP`.to_s.split('=').last.strip
+	end
+	
+	
+	def get_dimensions()
+		return @x, @y, @width, @height
 	end
 
 
