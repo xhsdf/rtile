@@ -48,6 +48,10 @@ cycle the positions of all windows on screen
 
 move active window to the next monitor
 
+##--cycle-monitors
+
+move all windows on screen to their next monitor
+
 ##--version
 
 show version
@@ -204,6 +208,11 @@ Example 2: `priority="low" fake_windows="3"` will place a window on the bottom r
 <keybind key="S-W-KP_0">
 	<action name="Execute">
 		<command>rtile.rb --cycle</command>
+	</action>
+</keybind>
+<keybind key="S-W-KP_5">
+	<action name="Execute">
+		<command>rtile.rb --cycle-monitors</command>
 	</action>
 </keybind>
 

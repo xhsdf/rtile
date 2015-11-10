@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.80"
+VERSION = "1.81"
 
 GROW_PUSHBACK = 32
 
@@ -36,6 +36,8 @@ def main()
 		cycle(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
 	elsif ARGV.include? "--next-monitor"
 		next_monitor_active(settings, Window.get_visible_windows(), Monitor.get_monitors())
+	elsif ARGV.include? "--cycle-monitors"
+		cycle_monitors(settings, Window.get_visible_windows(), Monitor.get_monitors())
 	elsif not (split = ARGV.grep(/--split-(up|down|left|right)/)).empty?
 		split_active(settings, Window.get_visible_windows(), split.first.gsub(/^--split-/, ''))
 	elsif not (grow = ARGV.grep(/--grow-(up|down|left|right)/)).empty?
@@ -115,6 +117,13 @@ def grow_active(settings, windows, direction)
 	return if window.nil?
 	other_windows = windows.select do |w| window.id != w.id end
 	grow(settings, window, direction, other_windows)
+end
+
+
+def cycle_monitors(settings, windows, monitors)
+	windows.each do |w|
+		move_to_next_monitor(w, monitors)
+	end
 end
 
 
