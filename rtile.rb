@@ -720,7 +720,7 @@ class Monitor # requires: xrandr
 		monitors = []
 		id = 0
 		xrandr_output.each_line do |line|
-			if line =~ /[^ ]+ connected.*(\d+)x(\d+)\+(\d+)\+(\d+)/
+			if line =~ /.+ connected.*(\d+)x(\d+)\+(\d+)\+(\d+)/
 				width, height, x, y = line.match(/(\d+)x(\d+)\+(\d+)\+(\d+)/i).captures.collect do |c| c.to_i end
 				name = line.match(/(.+) connected/i).captures.first
 				monitors << Monitor.new(name, width, height, x, y, id)
