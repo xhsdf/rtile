@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.82"
+VERSION = "1.83"
 
 GROW_PUSHBACK = 32
 
@@ -293,15 +293,24 @@ end
 
 def auto_tile_all(settings)
 	require 'pty'
-	PTY.spawn( "xprop -spy -root _NET_CLIENT_LIST_STACKING" ) do |stdout, stdin, pid|
-		current_windows = []
-		stdout.each do |line|
-			windows = Window.get_visible_windows()
-			if current_windows.size != windows.size or current_windows.last.id != windows.last.id
-				tile_all(settings, windows, Monitor.get_monitors(), windows.last.workspace)
+	begin
+		PTY.spawn( "xprop -spy -root _NET_CLIENT_LIST_STACKING" ) do |stdout, stdin, pid|
+			current_windows = []
+			stdout.each do |line|
+				begin
+					windows = Window.get_visible_windows()
+					if current_windows.size != windows.size or current_windows.last.id != windows.last.id
+						tile_all(settings, windows, Monitor.get_monitors(), windows.last.workspace)
+					end
+				rescue Interrupt, SystemExit
+					break
+				rescue
+					windows = []
+				end
+				current_windows = windows
 			end
-			current_windows = windows
 		end
+	rescue Interrupt, SystemExit
 	end
 end
 
@@ -319,6 +328,7 @@ def tile_all(settings, windows, monitors, current_workspace)
 
 	monitors.each do |monitor|
 		monitor_windows = monitor_hash[monitor.name].select do |w| (settings.floating.select do |i| w.class_name.downcase.include? i.downcase end).empty? end
+		break if monitor_windows.empty?
 		fake_windows = [1]
 		monitor_windows.each do |w|
 			settings.fake_windows.keys.each do |p|
@@ -333,19 +343,42 @@ def tile_all(settings, windows, monitors, current_workspace)
 		
 		monitor_windows.sort_by! do |w| get_window_priority(settings.high_priority_windows, settings.low_priority_windows, w, reverse_x, reverse_y) end
 
-		remaining_windows = monitor_windows.clone
-		columns = [[]]
-		
-		main_col_rows_size = monitor_windows.size > 4 ? 2 : 1
-		main_col_rows_size.times do
-			columns[0] << remaining_windows.shift
-		end
-		columns << remaining_windows unless remaining_windows.empty?
+		columns = calc_columns(monitor_windows, settings.col_max_size_main, settings.col_max_size)
 		columns.last.reverse! if reverse_y
 		columns.reverse! if reverse_x
 		
 		tile(settings, columns, monitor, median)
 	end
+end
+
+
+def calc_columns(windows, main_col_max, col_max)
+	columns = []
+
+	cols = 1 + ((windows.size - 2) / col_max)
+	main_col = [cols, main_col_max].min
+	cols = 1 + ((windows.size - 1 - main_col) / col_max)	
+	main_col = [main_col, 1].max
+
+	columns = Array.new(cols + 1)
+	columns[0] = windows.shift(main_col)
+	col_size = ((windows.size - 1) / cols) + 1
+
+	windows.reverse!
+
+	(cols).downto(2).each do |i|
+	  columns[i] = []
+	  columns[i] = windows.shift(col_size).reverse
+	end
+	columns[1] = windows.reverse unless windows.empty?
+
+	while columns[0].size > 1 and columns[0].size >= columns[1].size
+		columns[1].unshift(columns[0].pop)
+	end
+	
+	columns.pop if columns.last.nil?
+	
+	return columns
 end
 
 
@@ -441,7 +474,7 @@ end
 
 
 class Settings
-	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :high_priority_windows, :low_priority_windows, :fake_windows
+	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :high_priority_windows, :low_priority_windows, :fake_windows, :col_max_size_main, :col_max_size
 
 	def initialize(config_file = nil)
 		@medians = {}
@@ -452,13 +485,15 @@ class Settings
 		@high_priority_windows = []
 		@low_priority_windows = []
 		@fake_windows = {}
+		@col_max_size_main = 3
+		@col_max_size = 4
 
 		return if config_file.nil?
 
 		unless File.exists?(config_file)
 			FileUtils.mkdir_p(File.dirname(config_file))
 			xml_file = File.new(config_file, 'w')
-			xml_file.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings>\n	<gaps top=\"42\" bottom=\"22\" left=\"22\" right=\"22\" windows_x=\"22\" windows_y=\"22\"/>\n\n	<!--<workspace id=\"<id>\" median=\"0.5\" reverse_x=\"true|false\" reverse_y=\"true|false\"/>-->\n\n	<!--<window class=\"<class>\" priority=\"high|low\" floating=\"true|false\" fake_windows=\"1|2|3|...\"/>-->\n</settings>")
+			xml_file.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings>\n	<gaps top=\"42\" bottom=\"22\" left=\"22\" right=\"22\" windows_x=\"22\" windows_y=\"22\"/>\n	<columns max_size_main=\"3\" max_size=\"4\"/>\n\n	<!--<workspace id=\"<id>\" median=\"0.5\" reverse_x=\"true|false\" reverse_y=\"true|false\"/>-->\n\n	<!--<window class=\"<class>\" priority=\"high|low\" floating=\"true|false\" fake_windows=\"1|2|3|...\"/>-->\n</settings>")
 			xml_file.close
 		end
 
@@ -472,6 +507,9 @@ class Settings
 				@gaps[:right] = el.attributes["right"].to_i
 				@gaps[:windows_x] = el.attributes["windows_x"].to_i
 				@gaps[:windows_y] = el.attributes["windows_y"].to_i
+			elsif el.name == 'columns'
+				@col_max_size_main = el.attributes["max_size_main"].to_i
+				@col_max_size = el.attributes["max_size"].to_i
 			elsif el.name == 'workspace'
 				workspace_id = el.attributes["id"]
 				unless el.attributes["median"].nil?

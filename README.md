@@ -93,6 +93,13 @@ horizontal space between windows
 ###windows_y
 vertical space between windows
 
+##Column settings
+
+###max_size_main
+Maximum number of windows in the main(first) column
+
+###max_size
+Maximum number of windows in other columns
 
 ##Workspace settings
 Workspace settings are only relevant for automatic tiling. Except for median
