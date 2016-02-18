@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.83"
+VERSION = "1.84"
 
 GROW_PUSHBACK = 32
 
