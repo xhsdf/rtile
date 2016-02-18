@@ -343,7 +343,7 @@ def tile_all(settings, windows, monitors, current_workspace)
 		
 		monitor_windows.sort_by! do |w| get_window_priority(settings.high_priority_windows, settings.low_priority_windows, w, reverse_x, reverse_y) end
 
-		columns = calc_columns(monitor_windows, settings.col_max_size_main, settings.col_max_size)
+		columns = calc_columns(monitor_windows, settings.col_max_size_main, settings.col_max_size, settings.col_max_count)
 		columns.last.reverse! if reverse_y
 		columns.reverse! if reverse_x
 		
@@ -352,33 +352,34 @@ def tile_all(settings, windows, monitors, current_workspace)
 end
 
 
-def calc_columns(windows, main_col_max, col_max)
+def calc_columns(windows, main_col_max, col_max, count_max)
+	return [windows] if count_max <= 1
+
 	columns = []
 
-	cols = 1 + ((windows.size - 2) / col_max)
-	main_col = [cols, main_col_max].min
-	cols = 1 + ((windows.size - 1 - main_col) / col_max)	
-	main_col = [main_col, 1].max
-
-	columns = Array.new(cols + 1)
-	columns[0] = windows.shift(main_col)
-	col_size = ((windows.size - 1) / cols) + 1
-
-	windows.reverse!
-
-	(cols).downto(2).each do |i|
-	  columns[i] = []
-	  columns[i] = windows.shift(col_size).reverse
+	col_count = [get_col_count(windows.size, main_col_max, col_max, count_max), count_max - 1].min
+	main_size = main_col_max
+	while get_col_count(windows.size, main_size - 1, col_max, count_max) == col_count
+		main_size -= 1
 	end
-	columns[1] = windows.reverse unless windows.empty?
+	main_size = [main_size, 1].max
+	rest_size = [windows.size - main_size - ((col_count - 1) * col_max), col_max].min
 
-	while columns[0].size > 1 and columns[0].size >= columns[1].size
-		columns[1].unshift(columns[0].pop)
+	columns << windows.shift(main_size)
+	columns << windows.shift(rest_size) unless windows.empty?
+	(col_count - 1).times do
+		columns << windows.shift(col_max)
 	end
-	
-	columns.pop if columns.last.nil?
-	
+	columns.last.concat(windows) unless windows.empty?
+
 	return columns
+end
+
+def get_col_count(window_count, main_col_max, col_max, count_max)
+	col_count = ((window_count - main_col_max - 1) / col_max) + 1
+	col_count = 0 if window_count < 2 and count_max < 2
+	col_count = 1 if window_count > 1 and col_count <= 0
+	return col_count
 end
 
 
@@ -474,7 +475,7 @@ end
 
 
 class Settings
-	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :high_priority_windows, :low_priority_windows, :fake_windows, :col_max_size_main, :col_max_size
+	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :high_priority_windows, :low_priority_windows, :fake_windows, :col_max_size_main, :col_max_size, :col_max_count
 
 	def initialize(config_file = nil)
 		@medians = {}
@@ -485,15 +486,16 @@ class Settings
 		@high_priority_windows = []
 		@low_priority_windows = []
 		@fake_windows = {}
-		@col_max_size_main = 3
+		@col_max_size_main = 2
 		@col_max_size = 4
+		@col_max_count = 2
 
 		return if config_file.nil?
 
 		unless File.exists?(config_file)
 			FileUtils.mkdir_p(File.dirname(config_file))
 			xml_file = File.new(config_file, 'w')
-			xml_file.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings>\n	<gaps top=\"42\" bottom=\"22\" left=\"22\" right=\"22\" windows_x=\"22\" windows_y=\"22\"/>\n	<columns max_size_main=\"3\" max_size=\"4\"/>\n\n	<!--<workspace id=\"<id>\" median=\"0.5\" reverse_x=\"true|false\" reverse_y=\"true|false\"/>-->\n\n	<!--<window class=\"<class>\" priority=\"high|low\" floating=\"true|false\" fake_windows=\"1|2|3|...\"/>-->\n</settings>")
+			xml_file.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings>\n	<gaps top=\"42\" bottom=\"22\" left=\"22\" right=\"22\" windows_x=\"22\" windows_y=\"22\"/>\n	<columns max_size_main=\"2\" max_size=\"4\" max_count=\"2\"/>\n\n	<!--<workspace id=\"<id>\" median=\"0.5\" reverse_x=\"true|false\" reverse_y=\"true|false\"/>-->\n\n	<!--<window class=\"<class>\" priority=\"high|low\" floating=\"true|false\" fake_windows=\"1|2|3|...\"/>-->\n</settings>")
 			xml_file.close
 		end
 
@@ -510,6 +512,7 @@ class Settings
 			elsif el.name == 'columns'
 				@col_max_size_main = el.attributes["max_size_main"].to_i
 				@col_max_size = el.attributes["max_size"].to_i
+				@col_max_count = el.attributes["max_count"].to_i
 			elsif el.name == 'workspace'
 				workspace_id = el.attributes["id"]
 				unless el.attributes["median"].nil?

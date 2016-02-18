@@ -101,6 +101,9 @@ Maximum number of windows in the main(first) column
 ###max_size
 Maximum number of windows in other columns
 
+###max_count
+Maximum number of columns
+
 ##Workspace settings
 Workspace settings are only relevant for automatic tiling. Except for median
 
@@ -141,6 +144,7 @@ Example 2: `priority="low" fake_windows="3"` will place a window on the bottom r
 <?xml version="1.0" encoding="UTF-8"?>
 <settings>
 	<gaps top="42" bottom="22" left="22" right="22" windows_x="22" windows_y="22"/>
+	<columns max_size_main="2" max_size="4" max_count="3"/>
 
 	<workspace id="0" median="0.6"/>
 	<workspace id="1"/>
