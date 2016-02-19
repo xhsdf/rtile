@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.84"
+VERSION = "1.85"
 
 GROW_PUSHBACK = 32
 
@@ -357,17 +357,19 @@ def calc_columns(windows, main_col_max, col_max, count_max)
 
 	columns = []
 
-	col_count = [get_col_count(windows.size, main_col_max, col_max, count_max), count_max - 1].min
+	col_count = [get_col_count(windows.size, main_col_max, col_max), count_max].min
 	main_size = main_col_max
-	while get_col_count(windows.size, main_size - 1, col_max, count_max) == col_count
+
+	while get_col_count(windows.size, main_size - 1, col_max) == col_count and main_size > 1
 		main_size -= 1
 	end
+
 	main_size = [main_size, 1].max
-	rest_size = [windows.size - main_size - ((col_count - 1) * col_max), col_max].min
+	rest_size = [windows.size - main_size - ((col_count - 2) * col_max), col_max].min
 
 	columns << windows.shift(main_size)
 	columns << windows.shift(rest_size) unless windows.empty?
-	(col_count - 1).times do
+	(col_count - 2).times do
 		columns << windows.shift(col_max)
 	end
 	columns.last.concat(windows) unless windows.empty?
@@ -375,10 +377,10 @@ def calc_columns(windows, main_col_max, col_max, count_max)
 	return columns
 end
 
-def get_col_count(window_count, main_col_max, col_max, count_max)
-	col_count = ((window_count - main_col_max - 1) / col_max) + 1
-	col_count = 0 if window_count < 2 and count_max < 2
-	col_count = 1 if window_count > 1 and col_count <= 0
+def get_col_count(window_count, main_col_max, col_max)
+	col_count = ((window_count - main_col_max - 1) / col_max) + 2
+	col_count = 1 if window_count <= 1
+	col_count = 2 if window_count > 1 and col_count <= 1
 	return col_count
 end
 
