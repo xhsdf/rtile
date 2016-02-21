@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.85"
+VERSION = "1.86"
 
 GROW_PUSHBACK = 32
 
@@ -466,8 +466,8 @@ end
 
 
 def get_monitor(window, monitors)
-	monitors_x = monitors.select do |m| window.x >= m.x and window.x <= m.x + m.width end
-	monitors_y = monitors.select do |m| window.y >= m.y and window.y <= m.y + m.height end
+	monitors_x = monitors.select do |m| window.x >= m.x and window.x < m.x + m.width end
+	monitors_y = monitors.select do |m| window.y >= m.y and window.y < m.y + m.height end
 	
 	return (monitors_x & monitors_y).first unless (monitors_x & monitors_y).empty?
 	return monitors_x.first unless monitors_x.empty?
