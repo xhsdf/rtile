@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.86"
+VERSION = "1.87"
 
 GROW_PUSHBACK = 32
 
@@ -674,7 +674,7 @@ class Window # requires: wmcrtl, xprop, xwininfo
 		return `xprop -root _NET_ACTIVE_WINDOW`.strip.split(' ').last
 	end
 	
-	def resize(x, y, width, height)
+	def resize(x, y, width, height, correction = true)
 		x = x || @x
 		y = y || @y
 		width = width || @width
@@ -691,6 +691,17 @@ class Window # requires: wmcrtl, xprop, xwininfo
 		#~ `wmctrl #{window_string} -b remove,fullscreen`
 		#~ puts command
 		`#{command}`
+		
+		if correction
+			calc_dimensions()
+			offset_x = x - @x
+			offset_y = y - @y
+			offset_width = width - @width
+			offset_height = height - @height
+			if(offset_x != 0 or offset_y != 0 or offset_width != 0 or offset_height != 0)
+				resize(x + offset_x, y + offset_y, width - offset_width, height - offset_height, false)
+			end
+		end
 	end
 
 
