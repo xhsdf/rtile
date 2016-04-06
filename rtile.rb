@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.87"
+VERSION = "1.88"
 
 GROW_PUSHBACK = 32
 
@@ -265,6 +265,10 @@ def split(settings, window, direction, same_pos_windows = [nil])
 	splits = [same_pos_windows.size + 1, 2].max
 	split_height = (window.height / splits) - ((splits - 1) * (settings.gaps[:windows_x] / splits))
 	split_width = (window.width / splits) - ((splits - 1) * (settings.gaps[:windows_y] / splits))
+	original_x = window.x
+	original_y = window.y
+	original_width = window.width
+	original_height = window.height
 	
 	if direction == 'left' or direction == 'up'
 		same_pos_windows.unshift(window)
@@ -273,19 +277,19 @@ def split(settings, window, direction, same_pos_windows = [nil])
 	end
 	if direction == 'left' or direction == 'right'
 		same_pos_windows.each_with_index do |w, i|
-			x = window.x + (i * (split_width + settings.gaps[:windows_x]))
+			x = original_x + (i * (split_width + settings.gaps[:windows_x]))
 			if i == same_pos_windows.size - 1
-				split_width = (window.x + window.width) - x
+				split_width = (original_x + original_width) - x
 			end
-			w.resize(x, window.y, split_width, window.height) unless w.nil?
+			w.resize(x, original_y, split_width, original_height) unless w.nil?
 		end
 	elsif direction == 'up' or direction == 'down'
 		same_pos_windows.each_with_index do |w, i|
-			y = window.y + (i * (split_height + settings.gaps[:windows_y]))
+			y = original_y + (i * (split_height + settings.gaps[:windows_y]))
 			if i == same_pos_windows.size - 1
-				split_width = (window.y + window.height) - y
+				split_width = (original_y + original_height) - y
 			end
-			w.resize(window.x, y, window.width, split_height) unless w.nil?
+			w.resize(original_x, y, original_width, split_height) unless w.nil?
 		end
 	end
 end
