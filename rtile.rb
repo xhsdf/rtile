@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.88"
+VERSION = "1.89"
 
 GROW_PUSHBACK = 32
 
@@ -265,10 +265,6 @@ def split(settings, window, direction, same_pos_windows = [nil])
 	splits = [same_pos_windows.size + 1, 2].max
 	split_height = (window.height / splits) - ((splits - 1) * (settings.gaps[:windows_x] / splits))
 	split_width = (window.width / splits) - ((splits - 1) * (settings.gaps[:windows_y] / splits))
-	original_x = window.x
-	original_y = window.y
-	original_width = window.width
-	original_height = window.height
 	
 	if direction == 'left' or direction == 'up'
 		same_pos_windows.unshift(window)
@@ -277,19 +273,19 @@ def split(settings, window, direction, same_pos_windows = [nil])
 	end
 	if direction == 'left' or direction == 'right'
 		same_pos_windows.each_with_index do |w, i|
-			x = original_x + (i * (split_width + settings.gaps[:windows_x]))
+			x = window.x + (i * (split_width + settings.gaps[:windows_x]))
 			if i == same_pos_windows.size - 1
-				split_width = (original_x + original_width) - x
+				split_width = (window.x + window.width) - x
 			end
-			w.resize(x, original_y, split_width, original_height) unless w.nil?
+			w.resize(x, window.y, split_width, window.height) unless w.nil?
 		end
 	elsif direction == 'up' or direction == 'down'
 		same_pos_windows.each_with_index do |w, i|
-			y = original_y + (i * (split_height + settings.gaps[:windows_y]))
+			y = window.y + (i * (split_height + settings.gaps[:windows_y]))
 			if i == same_pos_windows.size - 1
-				split_width = (original_y + original_height) - y
+				split_width = (window.y + window.height) - y
 			end
-			w.resize(original_x, y, original_width, split_height) unless w.nil?
+			w.resize(window.x, y, window.width, split_height) unless w.nil?
 		end
 	end
 end
@@ -625,7 +621,7 @@ class Window # requires: wmcrtl, xprop, xwininfo
 			end
 		end
 		unless @ignore
-			calc_dimensions()
+			@x, @y, @width, @height = calc_dimensions()
 		end
 	end
 	
@@ -697,11 +693,11 @@ class Window # requires: wmcrtl, xprop, xwininfo
 		`#{command}`
 		
 		if correction
-			calc_dimensions()
-			offset_x = x - @x
-			offset_y = y - @y
-			offset_width = width - @width
-			offset_height = height - @height
+			current_x, current_y, current_width, current_height = calc_dimensions()
+			offset_x = x - current_x
+			offset_y = y - current_y
+			offset_width = width - current_width
+			offset_height = height - current_height
 			if(offset_x != 0 or offset_y != 0 or offset_width != 0 or offset_height != 0)
 				resize(x + offset_x, y + offset_y, width - offset_width, height - offset_height, false)
 			end
@@ -710,24 +706,27 @@ class Window # requires: wmcrtl, xprop, xwininfo
 
 
 	def calc_dimensions()
+		x, y, width, height = 0, 0, 0, 0
 		win_info = `xwininfo -id #{@id}`
 			
 		win_info.each_line do |line|
 			if line.include? 'Width:'
-				@width = line.match(/Width: *(.+)/i).captures.first.strip.to_i
+				width = line.match(/Width: *(.+)/i).captures.first.strip.to_i
 			elsif line.include? 'Height:'
-				@height = line.match(/Height: *(.+)/i).captures.first.strip.to_i
+				height = line.match(/Height: *(.+)/i).captures.first.strip.to_i
 			elsif line.include? 'Absolute upper-left X:'
-				@x = line.match(/Absolute upper-left X: *(.+)/i).captures.first.strip.to_i
+				x = line.match(/Absolute upper-left X: *(.+)/i).captures.first.strip.to_i
 			elsif line.include? 'Absolute upper-left Y:'
-				@y = line.match(/Absolute upper-left Y: *(.+)/i).captures.first.strip.to_i
+				y = line.match(/Absolute upper-left Y: *(.+)/i).captures.first.strip.to_i
 			end
 		end
 		
-		@x -= @decorations[:left]
-		@y -= @decorations[:top]
-		@width += @decorations[:right] + @decorations[:left]
-		@height += @decorations[:bottom] + @decorations[:top]
+		x -= @decorations[:left]
+		y -= @decorations[:top]
+		width += @decorations[:right] + @decorations[:left]
+		height += @decorations[:bottom] + @decorations[:top]
+		
+		return x, y, width, height
 	end
 	
 	
