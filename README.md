@@ -262,7 +262,8 @@ Example 2: `priority="low" fake_windows="3"` will place a window on the bottom r
 		<command>rtile.rb tr</command>
 	</action>
 </keybind>
-<keybind key="W-KP_6"><action name="Execute">
+<keybind key="W-KP_6">
+	<action name="Execute">
 		<command>rtile.rb r</command>
 	</action>
 </keybind>
