@@ -151,20 +151,21 @@ end
 
 
 def grow(settings, window, direction, other_windows)
-	target_windows = other_windows.select do |w| lies_in_path(window, w, direction) end
+	monitors = Monitor.get_monitors()
+	monitor = get_monitor(window, monitors)
+	target_windows = other_windows.select do |w| lies_in_path(window, w, direction) and get_monitor(w, monitors) == monitor end
 	up, down, left, right = 0, 0, 0, 0
 
 	if target_windows.empty?
-		m = get_monitor(window, Monitor.get_monitors())
 		case direction
 			when 'up'
-				up = window.y - m.y - settings.gaps[:top]
+				up = window.y - monitor.y - settings.gaps[:top]
 			when 'down'
-				down = m.y_end - settings.gaps[:bottom] - window.y_end
+				down = monitor.y_end - settings.gaps[:bottom] - window.y_end
 			when 'left'
-				left = window.x - m.x - settings.gaps[:left]
+				left = window.x - monitor.x - settings.gaps[:left]
 			when 'right'
-				right = m.x_end - settings.gaps[:right] - window.x_end
+				right = monitor.x_end - settings.gaps[:right] - window.x_end
 		end
 	else
 		target = get_closest_window(target_windows, direction)		
