@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.89"
+VERSION = "1.90"
 
 GROW_PUSHBACK = 32
 
@@ -135,8 +135,12 @@ end
 
 
 def move_to_next_monitor(window, monitors)
-	monitor = get_monitor(window, monitors)	
-	next_monitor = monitors[(monitors.index(monitor) + 1) % monitors.size]
+	next_monitors = []
+	monitors.each do |m|
+		next_monitors << m unless next_monitors.any? do |nm| m.x == nm.x and m.y == nm.y end
+	end
+	monitor = get_monitor(window, next_monitors)
+	next_monitor = next_monitors[(next_monitors.index(monitor) + 1) % next_monitors.size]
 	
 	move_to_monitor(window, monitor, next_monitor)
 end
