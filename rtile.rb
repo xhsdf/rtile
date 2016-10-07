@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.90"
+VERSION = "1.91"
 
 GROW_PUSHBACK = 32
 
@@ -327,6 +327,7 @@ def tile_all(settings, windows, monitors, current_workspace)
 		monitor = get_monitor(w, monitors)
 		monitor_hash[monitor.name] << w
 	end
+	
 
 	monitors.each do |monitor|
 		monitor_windows = monitor_hash[monitor.name].select do |w| (settings.floating.select do |i| w.class_name.downcase.include? i.downcase end).empty? end
@@ -345,12 +346,32 @@ def tile_all(settings, windows, monitors, current_workspace)
 		
 		monitor_windows.sort_by! do |w| get_window_priority(settings.high_priority_windows, settings.low_priority_windows, w, reverse_x, reverse_y) end
 
-		columns = calc_columns(monitor_windows, settings.col_max_size_main, settings.col_max_size, settings.col_max_count)
+		column_sizes = nil
+		unless settings.column_configs.empty?
+			column_config = settings.column_configs.select do |cs| (cs.workspace.nil? or cs.workspace == current_workspace) and cs.windows == monitor_windows.size end.first
+			column_sizes = column_config.column_sizes unless column_config.nil?
+		end
+		
+		columns = []
+		if column_sizes.nil?
+			columns = calc_columns(monitor_windows, settings.col_max_size_main, settings.col_max_size, settings.col_max_count)
+		else
+			columns = set_columns(monitor_windows, column_sizes)
+		end
 		columns.last.reverse! if reverse_y
 		columns.reverse! if reverse_x
 		
 		tile(settings, columns, monitor, median)
 	end
+end
+
+def set_columns(windows, column_sizes)
+	columns = []
+	column_sizes.each do |i|
+		columns << windows.shift(i)
+	end
+
+	return columns
 end
 
 
@@ -479,7 +500,7 @@ end
 
 
 class Settings
-	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :high_priority_windows, :low_priority_windows, :fake_windows, :col_max_size_main, :col_max_size, :col_max_count
+	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :high_priority_windows, :low_priority_windows, :column_configs, :fake_windows, :col_max_size_main, :col_max_size, :col_max_count
 
 	def initialize(config_file = nil)
 		@medians = {}
@@ -489,6 +510,7 @@ class Settings
 		@floating = []
 		@high_priority_windows = []
 		@low_priority_windows = []
+		@column_configs = []
 		@fake_windows = {}
 		@col_max_size_main = 2
 		@col_max_size = 4
@@ -541,6 +563,8 @@ class Settings
 				unless el.attributes["fake_windows"].nil?
 					@fake_windows[window_class] = el.attributes["fake_windows"].to_i
 				end
+			elsif el.name == 'column_config'
+				column_configs << ColumnConfig.new(el.attributes["windows"], el.attributes["workspace"], el.attributes["column_sizes"])
 			end
 		end
 	end
@@ -583,6 +607,17 @@ class Settings
 
 	def set_fake_windows(fake_windows)
 		@fake_windows = fake_windows
+	end
+end
+
+
+class ColumnConfig
+	attr_reader :windows, :workspace, :column_sizes
+
+	def initialize(windows, workspace, column_sizes)
+		@windows = windows.to_i
+		@workspace = workspace == 'all' ? nil : workspace
+		@column_sizes = column_sizes.split(/ *, */).collect do |cs| cs.to_i end
 	end
 end
 

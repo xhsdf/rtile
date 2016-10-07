@@ -138,6 +138,19 @@ Example 2: `priority="low" fake_windows="3"` will place a window on the bottom r
 ###floating
 `true`: window will be ignored
 
+##Custom column configs
+Manually set the count of columns and windows per column for a specific number of windows on a workspace
+
+###windows
+Number of windows the config applies to
+
+###workspace
+Workspace the config applies to. Empty or 'all' applies to all workspaces
+
+###column_sizes
+Array of column sizes
+Example: `column_sizes="1, 3"` will make 2 columns. The first will have 1 window and the second will have 3 windows.
+
 ##Example config
 
 ```
@@ -158,6 +171,14 @@ Example 2: `priority="low" fake_windows="3"` will place a window on the bottom r
 	<window class="nemo" fake_windows="3"/>
 	<window class="transmission-gtk" priority="low" fake_windows="3"/>
 	<window class="terminator" priority="low" fake_windows="3"/>
+	
+	<column_config windows="1" workspace="all" column_sizes="1"/>
+	<column_config windows="2" workspace="all" column_sizes="1, 1"/>
+	<column_config windows="3" workspace="all" column_sizes="1, 2"/>
+	<column_config windows="4" workspace="all" column_sizes="1, 3"/>
+	<column_config windows="5" workspace="all" column_sizes="2, 3"/>
+	<column_config windows="6" workspace="all" column_sizes="2, 4"/>
+	<column_config windows="7" workspace="all" column_sizes="1, 2, 4"/>
 </settings>
 ```
 
