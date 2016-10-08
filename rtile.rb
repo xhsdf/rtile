@@ -327,7 +327,6 @@ def tile_all(settings, windows, monitors, current_workspace)
 		monitor = get_monitor(w, monitors)
 		monitor_hash[monitor.name] << w
 	end
-	
 
 	monitors.each do |monitor|
 		monitor_windows = monitor_hash[monitor.name].select do |w| (settings.floating.select do |i| w.class_name.downcase.include? i.downcase end).empty? end
@@ -521,7 +520,7 @@ class Settings
 		unless File.exists?(config_file)
 			FileUtils.mkdir_p(File.dirname(config_file))
 			xml_file = File.new(config_file, 'w')
-			xml_file.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings>\n	<gaps top=\"42\" bottom=\"22\" left=\"22\" right=\"22\" windows_x=\"22\" windows_y=\"22\"/>\n	<columns max_size_main=\"2\" max_size=\"4\" max_count=\"2\"/>\n\n	<!--<workspace id=\"<id>\" median=\"0.5\" reverse_x=\"true|false\" reverse_y=\"true|false\"/>-->\n\n	<!--<window class=\"<class>\" priority=\"high|low\" floating=\"true|false\" fake_windows=\"1|2|3|...\"/>-->\n</settings>")
+			xml_file.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings>\n	<gaps top=\"42\" bottom=\"22\" left=\"22\" right=\"22\" windows_x=\"22\" windows_y=\"22\"/>\n	<columns max_size_main=\"2\" max_size=\"4\" max_count=\"2\"/>\n\n	<!--<workspace id=\"<id>\" median=\"0.5\" reverse_x=\"true|false\" reverse_y=\"true|false\"/>-->\n\n	<!--<window class=\"<class>\" priority=\"high|low\" floating=\"true|false\" fake_windows=\"1|2|3|...\"/>-->\n\t<column_config windows=\"1\" workspace=\"all\" column_sizes=\"1\"/>\n\t<column_config windows=\"2\" workspace=\"all\" column_sizes=\"1, 1\"/>\n\t<column_config windows=\"3\" workspace=\"all\" column_sizes=\"1, 2\"/>\n\t<column_config windows=\"4\" workspace=\"all\" column_sizes=\"1, 3\"/>\n\t<column_config windows=\"5\" workspace=\"all\" column_sizes=\"2, 3\"/>\n\t<column_config windows=\"6\" workspace=\"all\" column_sizes=\"2, 4\"/>\n\t<column_config windows=\"7\" workspace=\"all\" column_sizes=\"1, 2, 4\"/>\n</settings>")
 			xml_file.close
 		end
 
