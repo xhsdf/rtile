@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.91"
+VERSION = "1.92"
 
 GROW_PUSHBACK = 32
 
@@ -24,8 +24,12 @@ def main()
 
 	if ARGV.include? "--all"
 		tile_all(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
+	elsif ARGV.include? "--all-binary"
+		tile_all_binary(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
 	elsif ARGV.include? "--all-auto"
 		auto_tile_all(settings)
+	elsif ARGV.include? "--all-auto-binary"
+		auto_tile_all(settings, true)
 	elsif ARGV.include? "--binary"
 		binary(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
 	elsif ARGV.include? "--swap"
@@ -86,9 +90,11 @@ end
 def cycle(settings, windows, monitors, current_workspace)
 	monitor = get_monitor(get_active_window(windows), monitors)
 	windows.select! do |w| monitor == get_monitor(w, monitors) end
+	
+	window_dimensions = windows.rotate.collect do |w| w.get_dimensions() end
 
 	windows.size.times do |i|
-		windows[i].resize(*(windows[(i + 1) % windows.size]).get_dimensions())
+		windows[i].resize(*window_dimensions[i])
 	end
 end
 
@@ -107,8 +113,9 @@ end
 
 
 def swap_windows(window1, window2)
+	window1_dimensions = window1.get_dimensions()
 	window1.resize(*window2.get_dimensions())
-	window2.resize(*window1.get_dimensions())
+	window2.resize(*window1_dimensions)
 end
 
 
@@ -169,7 +176,9 @@ def grow(settings, window, direction, other_windows)
 				right = monitor.x_end - settings.gaps[:right] - window.x_end
 		end
 	else
-		target = get_closest_window(target_windows, direction)		
+		target = get_closest_window(target_windows, direction)
+		target_windows.delete(target)
+		target_windows << target
 		case direction
 			when 'up'
 				up = window.y - target.y_end - settings.gaps[:windows_y]
@@ -263,10 +272,15 @@ end
 
 
 def split(settings, window, direction, same_pos_windows = [nil])
+	window_x = window.x
+	window_y = window.y
+	window_height = window.height
+	window_width = window.width
+
 	same_pos_windows = [nil] if same_pos_windows.empty?
 	splits = [same_pos_windows.size + 1, 2].max
-	split_height = (window.height / splits) - ((splits - 1) * (settings.gaps[:windows_x] / splits))
-	split_width = (window.width / splits) - ((splits - 1) * (settings.gaps[:windows_y] / splits))
+	split_height = (window_height / splits) - ((splits - 1) * (settings.gaps[:windows_x] / splits))
+	split_width = (window_width / splits) - ((splits - 1) * (settings.gaps[:windows_y] / splits))
 	
 	if direction == 'left' or direction == 'up'
 		same_pos_windows.unshift(window)
@@ -275,25 +289,76 @@ def split(settings, window, direction, same_pos_windows = [nil])
 	end
 	if direction == 'left' or direction == 'right'
 		same_pos_windows.each_with_index do |w, i|
-			x = window.x + (i * (split_width + settings.gaps[:windows_x]))
+			x = window_x + (i * (split_width + settings.gaps[:windows_x]))
 			if i == same_pos_windows.size - 1
-				split_width = (window.x + window.width) - x
+				split_width = (window_x + window_width) - x
 			end
-			w.resize(x, window.y, split_width, window.height) unless w.nil?
+			w.resize(x, window_y, split_width, window_height) unless w.nil?
 		end
 	elsif direction == 'up' or direction == 'down'
 		same_pos_windows.each_with_index do |w, i|
-			y = window.y + (i * (split_height + settings.gaps[:windows_y]))
+			y = window_y + (i * (split_height + settings.gaps[:windows_y]))
 			if i == same_pos_windows.size - 1
-				split_width = (window.y + window.height) - y
+				split_width = (window_y + window_height) - y
 			end
-			w.resize(window.x, y, window.width, split_height) unless w.nil?
+			w.resize(window_x, y, window_width, split_height) unless w.nil?
 		end
 	end
 end
 
 
-def auto_tile_all(settings)
+def tile_all_binary(settings, windows, monitors, current_workspace)
+	monitor_hash = get_monitor_window_hash(monitors, windows)
+
+	monitors.each do |monitor|
+		monitor_windows = get_sorted_monitor_windows(settings, monitor_hash[monitor.name], monitor, current_workspace)
+		monitor_windows.reject! do |w| w.nil? end
+		break if monitor_windows.empty?
+		tile(settings, [[monitor_windows[0]]], monitor, 0.5)
+		for i in 0...monitor_windows.size
+			if i > 0
+				split(settings, monitor_windows[i - 1], i % 2 == 0 ? 'up' : 'left', [monitor_windows[i]])
+			end
+		end
+	end
+end
+
+
+def get_monitor_window_hash(monitors, windows)
+	monitor_hash = {}
+	monitors.each do |m|
+		monitor_hash[m.name] = []
+	end
+	windows.each do |w|
+		monitor = get_monitor(w, monitors)
+		monitor_hash[monitor.name] << w
+	end
+	return monitor_hash
+end
+
+
+def get_sorted_monitor_windows(settings, windows, monitor, current_workspace)
+	monitor_windows = windows.select do |w| (settings.floating.select do |i| w.class_name.downcase.include? i.downcase end).empty? end
+	return [] if monitor_windows.empty?
+	fake_windows = [1]
+	monitor_windows.each do |w|
+		settings.fake_windows.keys.each do |p|
+			fake_windows << settings.fake_windows[p] if w.class_name.downcase.include? p
+		end
+	end		
+	[fake_windows.max - monitor_windows.length, 0].max.times do
+		monitor_windows << nil
+	end
+	reverse_x = settings.reverse_x.include? current_workspace
+	reverse_y = settings.reverse_y.include? current_workspace
+	
+	monitor_windows.sort_by! do |w| get_window_priority(settings.high_priority_windows, settings.low_priority_windows, w, reverse_x, reverse_y) end
+
+	return monitor_windows
+end
+
+
+def auto_tile_all(settings, binary = false)
 	require 'pty'
 	begin
 		PTY.spawn( "xprop -spy -root _NET_CLIENT_LIST_STACKING" ) do |stdout, stdin, pid|
@@ -302,7 +367,11 @@ def auto_tile_all(settings)
 				begin
 					windows = Window.get_visible_windows()
 					if current_windows.size != windows.size or current_windows.last.id != windows.last.id
-						tile_all(settings, windows, Monitor.get_monitors(), windows.last.workspace)
+						if binary
+							tile_all_binary(settings, windows, Monitor.get_monitors(), windows.last.workspace)
+						else
+							tile_all(settings, windows, Monitor.get_monitors(), windows.last.workspace)
+						end
 					end
 				rescue Interrupt, SystemExit
 					break
@@ -318,33 +387,13 @@ end
 
 
 def tile_all(settings, windows, monitors, current_workspace)
+	monitor_hash = get_monitor_window_hash(monitors, windows)
 	median = settings.medians[current_workspace]
-	monitor_hash = {}
-	monitors.each do |m|
-		monitor_hash[m.name] = []
-	end
-	windows.each do |w|
-		monitor = get_monitor(w, monitors)
-		monitor_hash[monitor.name] << w
-	end
 
 	monitors.each do |monitor|
-		monitor_windows = monitor_hash[monitor.name].select do |w| (settings.floating.select do |i| w.class_name.downcase.include? i.downcase end).empty? end
+		monitor_windows = get_sorted_monitor_windows(settings, monitor_hash[monitor.name], monitor, current_workspace)
 		break if monitor_windows.empty?
-		fake_windows = [1]
-		monitor_windows.each do |w|
-			settings.fake_windows.keys.each do |p|
-				fake_windows << settings.fake_windows[p] if w.class_name.downcase.include? p
-			end
-		end		
-		[fake_windows.max - monitor_windows.length, 0].max.times do
-			monitor_windows << nil
-		end
-		reverse_x = settings.reverse_x.include? current_workspace
-		reverse_y = settings.reverse_y.include? current_workspace
 		
-		monitor_windows.sort_by! do |w| get_window_priority(settings.high_priority_windows, settings.low_priority_windows, w, reverse_x, reverse_y) end
-
 		column_sizes = nil
 		unless settings.column_configs.empty?
 			column_config = settings.column_configs.select do |cs| (cs.workspace.nil? or cs.workspace == current_workspace) and cs.windows == monitor_windows.size end.first
@@ -357,8 +406,9 @@ def tile_all(settings, windows, monitors, current_workspace)
 		else
 			columns = set_columns(monitor_windows, column_sizes)
 		end
-		columns.last.reverse! if reverse_y
-		columns.reverse! if reverse_x
+
+		columns.last.reverse! if settings.reverse_y.include? current_workspace
+		columns.reverse! if settings.reverse_x.include? current_workspace
 		
 		tile(settings, columns, monitor, median)
 	end
@@ -657,8 +707,12 @@ class Window # requires: wmcrtl, xprop, xwininfo
 			end
 		end
 		unless @ignore
-			@x, @y, @width, @height = calc_dimensions()
+			update_dimensions()
 		end
+	end
+	
+	def update_dimensions()
+		@x, @y, @width, @height = calc_dimensions()
 	end
 	
 	
@@ -715,11 +769,13 @@ class Window # requires: wmcrtl, xprop, xwininfo
 		y = y || @y
 		width = width || @width
 		height = height || @height
+		
+		@x, @y, @width, @height = x, y, width, height
 
 		width -= (@decorations[:left] + @decorations[:right])
 		height -= (@decorations[:top] + @decorations[:bottom])
-	
-	
+
+
 		window_string = "-i -r #{@id}"
 		command = "wmctrl #{window_string} -e 0,#{x},#{y},#{width},#{height}"
 

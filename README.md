@@ -10,6 +10,10 @@ Ruby script for manual tiling and window placement.
 
 tile all windows on screen
 
+##--all-binary
+
+tile all windows on screen and have every window take half the space of the previous window
+
 ##--all-auto
 
 automatically tile all windows on screen when a new window is opened, closed or focused
