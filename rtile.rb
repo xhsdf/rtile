@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.92"
+VERSION = "1.92a"
 
 GROW_PUSHBACK = 32
 
@@ -396,7 +396,7 @@ def tile_all(settings, windows, monitors, current_workspace)
 		
 		column_sizes = nil
 		unless settings.column_configs.empty?
-			column_config = settings.column_configs.select do |cs| (cs.workspace.nil? or cs.workspace == current_workspace) and cs.windows == monitor_windows.size end.first
+			column_config = settings.column_configs.select do |cs| (cs.workspace.nil? or cs.workspace == current_workspace) and cs.windows == monitor_windows.size end.last
 			column_sizes = column_config.column_sizes unless column_config.nil?
 		end
 		
