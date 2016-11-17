@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.92a"
+VERSION = "1.93"
 
 GROW_PUSHBACK = 32
 
@@ -313,7 +313,7 @@ def tile_all_binary(settings, windows, monitors, current_workspace)
 	monitors.each do |monitor|
 		monitor_windows = get_sorted_monitor_windows(settings, monitor_hash[monitor.name], monitor, current_workspace)
 		monitor_windows.reject! do |w| w.nil? end
-		break if monitor_windows.empty?
+		next if monitor_windows.empty?
 		tile(settings, [[monitor_windows[0]]], monitor, 0.5)
 		for i in 0...monitor_windows.size
 			if i > 0
