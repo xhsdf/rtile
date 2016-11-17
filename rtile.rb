@@ -392,7 +392,7 @@ def tile_all(settings, windows, monitors, current_workspace)
 
 	monitors.each do |monitor|
 		monitor_windows = get_sorted_monitor_windows(settings, monitor_hash[monitor.name], monitor, current_workspace)
-		break if monitor_windows.empty?
+		next if monitor_windows.empty?
 		
 		column_sizes = nil
 		unless settings.column_configs.empty?
