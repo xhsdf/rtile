@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.93"
+VERSION = "1.94"
 
 GROW_PUSHBACK = 32
 
@@ -309,6 +309,8 @@ end
 
 def tile_all_binary(settings, windows, monitors, current_workspace)
 	monitor_hash = get_monitor_window_hash(monitors, windows)
+	reverse_x = settings.reverse_x.include? current_workspace
+	reverse_y = settings.reverse_y.include? current_workspace
 
 	monitors.each do |monitor|
 		monitor_windows = get_sorted_monitor_windows(settings, monitor_hash[monitor.name], monitor, current_workspace)
@@ -317,7 +319,7 @@ def tile_all_binary(settings, windows, monitors, current_workspace)
 		tile(settings, [[monitor_windows[0]]], monitor, 0.5)
 		for i in 0...monitor_windows.size
 			if i > 0
-				split(settings, monitor_windows[i - 1], i % 2 == 0 ? 'up' : 'left', [monitor_windows[i]])
+				split(settings, monitor_windows[i - 1], i % 2 == 0 ? (reverse_y ? 'down' : 'up') : (reverse_x ? 'right' : 'left'), [monitor_windows[i]])
 			end
 		end
 	end
