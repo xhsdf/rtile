@@ -22,6 +22,9 @@ automatically tile all windows on screen when a new window is opened, closed or 
 
 move active window to edges (left, top-left, top, top-right, etc.)
 
+Example 1: `rtile.rb l` will place the window on the left half of the screen
+Example 2: `rtile.rb tr` will place the window on the top right of the screen
+
 ##--split-(up|down|left|right)
 
 split active window (either in half or using all windows occupying the same space)
@@ -31,6 +34,13 @@ split active window (either in half or using all windows occupying the same spac
 grow active window to the nearest edge (window or screen) of a direction
 
 if the window is already at the edge of another window it will be pushed back
+
+##--grid-(c)x(r)-(x),(y)
+
+place active window at x,y in a grid of c columns and r rows
+
+Example 1: `--grid-3x3-2,2` will place the window in the middle of a 3x3 grid
+Example 2: `--grid-2x2-2,1` is the same as `rtile.rb tr`
 
 ##--binary
 

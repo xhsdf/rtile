@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.94"
+VERSION = "1.95"
 
 GROW_PUSHBACK = 32
 
@@ -46,6 +46,8 @@ def main()
 		split_active(settings, Window.get_visible_windows(), split.first.gsub(/^--split-/, ''))
 	elsif not (grow = ARGV.grep(/--grow-(up|down|left|right)/)).empty?
 		grow_active(settings, Window.get_visible_windows(), grow.first.gsub(/^--grow-/, ''))
+	elsif not (grid = ARGV.grep(/--grid-\d+x\d+-\d+,\d+/)).empty?
+		grid_active(settings, Monitor.get_monitors(), Monitor.get_current_workspace(), grid.first.gsub(/^--grid-/, ''))
 	else
 		tile_active(settings, Monitor.get_monitors(), Monitor.get_current_workspace(), ARGV.select do |arg| arg =~ /^(l|r|t|b)+$/ end)
 	end
@@ -53,7 +55,6 @@ end
 
 
 def tile_active(settings, monitors, current_workspace, args)
-	median = settings.medians[current_workspace]
 	window = get_active_window()
 	return if window.nil?
 	cols, rows, x, y = 1, 1, 0, 0
@@ -66,6 +67,11 @@ def tile_active(settings, monitors, current_workspace, args)
 			y = rows - 1 if c == 'b'			
 		end
 	end
+	grid(settings, window, monitors, current_workspace, cols, rows, x, y)
+end
+
+
+def grid(settings, window, monitors, current_workspace, cols, rows, x, y)
 	columns = []
 	(0...cols).each do |c|
 		columns << []
@@ -75,7 +81,7 @@ def tile_active(settings, monitors, current_workspace, args)
 	end
 	columns[x][y] = window
 	
-	tile(settings, columns, get_monitor(window, monitors), median)
+	tile(settings, columns, get_monitor(window, monitors), settings.medians[current_workspace])
 end
 
 
@@ -124,6 +130,13 @@ def grow_active(settings, windows, direction)
 	return if window.nil?
 	other_windows = windows.select do |w| window.id != w.id end
 	grow(settings, window, direction, other_windows)
+end
+
+
+def grid_active(settings, monitors, current_workspace, params)
+	window = get_active_window()
+	cols, rows, x, y = params.match(/(\d+)x(\d+)-(\d+),(\d+)/i).captures	
+	grid(settings, window, monitors, current_workspace, cols.to_i, rows.to_i, x.to_i - 1 , y.to_i - 1)
 end
 
 
