@@ -66,6 +66,10 @@ move active window to the next monitor
 
 move all windows on screen to their next monitor
 
+##--no-config-file
+
+don't load config file
+
 ##--add-to-config
 
 adds elements to the config (does not write them to file)

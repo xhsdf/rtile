@@ -25,7 +25,7 @@ def main()
 	(ARGV.select do |arg| arg.start_with? "--add-to-config=" end).each do |addition|
 		additions << addition.sub(/^--add-to-config=/, "")
 	end
-	settings.read("#{ENV['HOME']}/.config/rtile/rtile.xml", additions)
+	settings.read((ARGV.include? "--no-config-file") ? nil : "#{ENV['HOME']}/.config/rtile/rtile.xml", additions)
 
 	if ARGV.include? "--all"
 		tile_all(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
@@ -609,9 +609,9 @@ class Settings
 				@gaps[:windows_x] = el.attributes["windows_x"].to_i unless el.attributes["windows_x"].nil?
 				@gaps[:windows_y] = el.attributes["windows_y"].to_i unless el.attributes["windows_y"].nil?
 			elsif el.name == 'columns'
-				@col_max_size_main = el.attributes["max_size_main"].to_i
-				@col_max_size = el.attributes["max_size"].to_i
-				@col_max_count = el.attributes["max_count"].to_i
+				@col_max_size_main = el.attributes["max_size_main"].to_i unless el.attributes["max_size_main"].nil?
+				@col_max_size = el.attributes["max_size"].to_i unless el.attributes["max_size"].nil?
+				@col_max_count = el.attributes["max_count"].to_i unless el.attributes["max_count"].nil?
 			elsif el.name == 'workspace'
 				workspace_id = el.attributes["id"]
 				unless el.attributes["median"].nil?
