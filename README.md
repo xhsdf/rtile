@@ -161,6 +161,9 @@ Number of windows the config applies to
 ###workspace
 Workspace the config applies to. Empty or 'all' applies to all workspaces
 
+###monitor
+Monitor the config applies to. Can be the id (0, 1, 2, ...) or the name (e.g. HDMI-0). Empty or 'all' applies to all monitors
+
 ###column_sizes
 Array of column sizes
 Example: `column_sizes="1, 3"` will make 2 columns. The first will have 1 window and the second will have 3 windows.
@@ -189,7 +192,8 @@ Example: `column_sizes="1, 3"` will make 2 columns. The first will have 1 window
 	<column_config windows="1" workspace="all" column_sizes="1"/>
 	<column_config windows="2" workspace="all" column_sizes="1, 1"/>
 	<column_config windows="3" workspace="all" column_sizes="1, 2"/>
-	<column_config windows="4" workspace="all" column_sizes="1, 3"/>
+	<column_config windows="4" workspace="all" monitor="all" column_sizes="1, 3"/>
+	<column_config windows="4" workspace="all" monitor="1" column_sizes="2, 2"/>
 	<column_config windows="5" workspace="all" column_sizes="2, 3"/>
 	<column_config windows="6" workspace="all" column_sizes="2, 4"/>
 	<column_config windows="7" workspace="all" column_sizes="1, 2, 4"/>

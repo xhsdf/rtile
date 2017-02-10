@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.95"
+VERSION = "1.96"
 
 GROW_PUSHBACK = 32
 
@@ -411,7 +411,7 @@ def tile_all(settings, windows, monitors, current_workspace)
 		
 		column_sizes = nil
 		unless settings.column_configs.empty?
-			column_config = settings.column_configs.select do |cs| (cs.workspace.nil? or cs.workspace == current_workspace) and cs.windows == monitor_windows.size end.last
+			column_config = settings.column_configs.select do |cs| (cs.workspace.nil? or cs.workspace == current_workspace) and (cs.monitor.nil? or cs.monitor == monitor.name or cs.monitor == monitor.id.to_s) and cs.windows == monitor_windows.size end.last
 			column_sizes = column_config.column_sizes unless column_config.nil?
 		end
 		
@@ -628,7 +628,7 @@ class Settings
 					@fake_windows[window_class] = el.attributes["fake_windows"].to_i
 				end
 			elsif el.name == 'column_config'
-				column_configs << ColumnConfig.new(el.attributes["windows"], el.attributes["workspace"], el.attributes["column_sizes"])
+				column_configs << ColumnConfig.new(el.attributes["windows"], el.attributes["workspace"], el.attributes["column_sizes"], el.attributes["monitor"])
 			end
 		end
 	end
@@ -676,11 +676,12 @@ end
 
 
 class ColumnConfig
-	attr_reader :windows, :workspace, :column_sizes
+	attr_reader :windows, :workspace, :column_sizes, :monitor
 
-	def initialize(windows, workspace, column_sizes)
+	def initialize(windows, workspace, column_sizes, monitor)
 		@windows = windows.to_i
 		@workspace = workspace == 'all' ? nil : workspace
+		@monitor = monitor == 'all' ? nil : monitor
 		@column_sizes = column_sizes.split(/ *, */).collect do |cs| cs.to_i end
 	end
 end
