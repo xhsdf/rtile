@@ -66,6 +66,14 @@ move active window to the next monitor
 
 move all windows on screen to their next monitor
 
+##--add-to-config
+
+adds elements to the config (does not write them to file)
+
+Example 1: `'--add-to-config=<gaps bottom="42"/>'` sets the bottom gap  
+Example 2: `'--add-to-config=<column_config windows="3" monitor="1"  column_sizes="2, 1"/>'` adds a column config  
+Example 3: `'--add-to-config=<column_config windows="3" monitor="1"  column_sizes="2, 1"/><gaps bottom="42"/>'` adds a column config and sets the bottom gap
+
 ##--version
 
 show version

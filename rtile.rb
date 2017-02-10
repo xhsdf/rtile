@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.96"
+VERSION = "1.97"
 
 GROW_PUSHBACK = 32
 
@@ -20,7 +20,12 @@ end
 
 
 def main()
-	settings = Settings.new("#{ENV['HOME']}/.config/rtile/rtile.xml")
+	settings = Settings.new()
+	additions = []
+	(ARGV.select do |arg| arg.start_with? "--add-to-config=" end).each do |addition|
+		additions << addition.sub(/^--add-to-config=/, "")
+	end
+	settings.read("#{ENV['HOME']}/.config/rtile/rtile.xml", additions)
 
 	if ARGV.include? "--all"
 		tile_all(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
@@ -566,7 +571,7 @@ end
 class Settings
 	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :high_priority_windows, :low_priority_windows, :column_configs, :fake_windows, :col_max_size_main, :col_max_size, :col_max_count
 
-	def initialize(config_file = nil)
+	def initialize()
 		@medians = {}
 		@reverse_x = []
 		@reverse_y = []
@@ -579,26 +584,30 @@ class Settings
 		@col_max_size_main = 2
 		@col_max_size = 4
 		@col_max_count = 2
+	end
 
-		return if config_file.nil?
-
-		unless File.exists?(config_file)
+	
+	def read(config_file, additions = [])
+		unless config_file.nil? or File.exists?(config_file)
 			FileUtils.mkdir_p(File.dirname(config_file))
 			xml_file = File.new(config_file, 'w')
 			xml_file.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings>\n	<gaps top=\"42\" bottom=\"22\" left=\"22\" right=\"22\" windows_x=\"22\" windows_y=\"22\"/>\n	<columns max_size_main=\"2\" max_size=\"4\" max_count=\"2\"/>\n\n	<!--<workspace id=\"<id>\" median=\"0.5\" reverse_x=\"true|false\" reverse_y=\"true|false\"/>-->\n\n	<!--<window class=\"<class>\" priority=\"high|low\" floating=\"true|false\" fake_windows=\"1|2|3|...\"/>-->\n\t<column_config windows=\"1\" workspace=\"all\" column_sizes=\"1\"/>\n\t<column_config windows=\"2\" workspace=\"all\" column_sizes=\"1, 1\"/>\n\t<column_config windows=\"3\" workspace=\"all\" column_sizes=\"1, 2\"/>\n\t<column_config windows=\"4\" workspace=\"all\" column_sizes=\"1, 3\"/>\n\t<column_config windows=\"5\" workspace=\"all\" column_sizes=\"2, 3\"/>\n\t<column_config windows=\"6\" workspace=\"all\" column_sizes=\"2, 4\"/>\n\t<column_config windows=\"7\" workspace=\"all\" column_sizes=\"1, 2, 4\"/>\n</settings>")
 			xml_file.close
 		end
 
-		xml_file = File.new(config_file)
-		xml_doc = Document.new(xml_file)		
+		xml_string = config_file.nil? ? "<settings></settings>" : File.new(config_file).read
+		additions.each do |addition|
+			xml_string.gsub!(/<\/settings>/, "#{addition}\\0")
+		end
+		xml_doc = Document.new(xml_string)
 		xml_doc.elements["settings"].elements.each do |el|
 			if el.name == 'gaps'
-				@gaps[:top] = el.attributes["top"].to_i
-				@gaps[:bottom] = el.attributes["bottom"].to_i
-				@gaps[:left] = el.attributes["left"].to_i
-				@gaps[:right] = el.attributes["right"].to_i
-				@gaps[:windows_x] = el.attributes["windows_x"].to_i
-				@gaps[:windows_y] = el.attributes["windows_y"].to_i
+				@gaps[:top] = el.attributes["top"].to_i unless el.attributes["top"].nil?
+				@gaps[:bottom] = el.attributes["bottom"].to_i unless el.attributes["bottom"].nil?
+				@gaps[:left] = el.attributes["left"].to_i unless el.attributes["left"].nil?
+				@gaps[:right] = el.attributes["right"].to_i unless el.attributes["right"].nil?
+				@gaps[:windows_x] = el.attributes["windows_x"].to_i unless el.attributes["windows_x"].nil?
+				@gaps[:windows_y] = el.attributes["windows_y"].to_i unless el.attributes["windows_y"].nil?
 			elsif el.name == 'columns'
 				@col_max_size_main = el.attributes["max_size_main"].to_i
 				@col_max_size = el.attributes["max_size"].to_i
