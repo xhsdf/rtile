@@ -9,7 +9,7 @@ include REXML
 
 
 NAME = "rtile"
-VERSION = "1.97"
+VERSION = "1.98"
 
 GROW_PUSHBACK = 32
 
@@ -797,12 +797,11 @@ class Window # requires: wmcrtl, xprop, xwininfo
 		
 		@x, @y, @width, @height = x, y, width, height
 
-		width -= (@decorations[:left] + @decorations[:right])
-		height -= (@decorations[:top] + @decorations[:bottom])
-
+		wmctrl_width = width - (@decorations[:left] + @decorations[:right])
+		wmctrl_height = height -(@decorations[:top] + @decorations[:bottom])
 
 		window_string = "-i -r #{@id}"
-		command = "wmctrl #{window_string} -e 0,#{x},#{y},#{width},#{height}"
+		command = "wmctrl #{window_string} -e 0,#{x},#{y},#{wmctrl_width},#{wmctrl_height}"
 
 		`wmctrl #{window_string} -b remove,maximized_vert,maximized_horz`
 		#~ `wmctrl #{window_string} -b remove,fullscreen`
