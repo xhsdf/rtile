@@ -1,17 +1,13 @@
 #!/usr/bin/ruby
 
 
-# requires: xprop, wmctrl, xwininfo, xrandr
-
-require 'fileutils'
-require 'rexml/document'
-include REXML
+# requires: xprop, pxdo.py
 
 
 NAME = "rtile"
-VERSION = "1.98"
-
+VERSION = "2.00"
 GROW_PUSHBACK = 32
+
 
 if ARGV.include? '--version'
 	puts "#{NAME} v#{VERSION}"
@@ -19,60 +15,111 @@ if ARGV.include? '--version'
 end
 
 
+require 'fileutils'
+require 'rexml/document'
+include REXML
+
+
+$actions = []
+$windows = []
+$active_window = nil
+$monitors = []
+$settings = nil
+
+
 def main()
-	settings = Settings.new()
+	$settings = Settings.new()
 	additions = []
 	(ARGV.select do |arg| arg.start_with? "--add-to-config=" end).each do |addition|
 		additions << addition.sub(/^--add-to-config=/, "")
 	end
-	settings.read((ARGV.include? "--no-config-file") ? nil : "#{ENV['HOME']}/.config/rtile/rtile.xml", additions)
+	$settings.read((ARGV.include? "--no-config-file") ? nil : "#{ENV['HOME']}/.config/rtile/rtile.xml", additions)
+
+	get_infos()
 
 	if ARGV.include? "--all"
-		tile_all(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
+		tile_all()
 	elsif ARGV.include? "--all-binary"
-		tile_all_binary(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
+		tile_all_binary()
 	elsif ARGV.include? "--all-auto"
-		auto_tile_all(settings)
+		auto_tile_all()
 	elsif ARGV.include? "--all-auto-binary"
-		auto_tile_all(settings, true)
+		auto_tile_all(true)
 	elsif ARGV.include? "--binary"
-		binary(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
+		binary()
 	elsif ARGV.include? "--swap"
-		swap(settings, Window.get_visible_windows(), Monitor.get_current_workspace())
+		swap()
 	elsif ARGV.include? "--swap-biggest"
-		swap_biggest(settings, Window.get_visible_windows(), Monitor.get_current_workspace())
+		swap_biggest()
 	elsif ARGV.include? "--cycle"
-		cycle(settings, Window.get_visible_windows(), Monitor.get_monitors(), Monitor.get_current_workspace())
+		cycle()
 	elsif ARGV.include? "--next-monitor"
-		next_monitor_active(settings, Window.get_visible_windows(), Monitor.get_monitors())
+		next_monitor_active()
 	elsif ARGV.include? "--cycle-monitors"
-		cycle_monitors(settings, Window.get_visible_windows(), Monitor.get_monitors())
+		cycle_monitors()
 	elsif not (split = ARGV.grep(/--split-(up|down|left|right)/)).empty?
-		split_active(settings, Window.get_visible_windows(), split.first.gsub(/^--split-/, ''))
+		split_active(split.first.gsub(/^--split-/, ''))
 	elsif not (grow = ARGV.grep(/--grow-(up|down|left|right)/)).empty?
-		grow_active(settings, Window.get_visible_windows(), grow.first.gsub(/^--grow-/, ''))
+		grow_active(grow.first.gsub(/^--grow-/, ''))
 	elsif not (grid = ARGV.grep(/--grid-\d+x\d+-\d+,\d+/)).empty?
-		grid_active(settings, Monitor.get_monitors(), Monitor.get_current_workspace(), grid.first.gsub(/^--grid-/, ''))
+		grid_active(grid.first.gsub(/^--grid-/, ''))
 	else
-		tile_active(settings, Monitor.get_monitors(), Monitor.get_current_workspace(), ARGV.select do |arg| arg =~ /^(l|r|t|b)+$/ end)
+		tile_active(ARGV.select do |arg| arg =~ /^(l|r|t|b)+$/ end)
+	end
+
+	update()
+end
+
+
+def update()
+	unless $actions.empty?
+		command = "pxdo.py " + $actions.join(" ")
+		#~ puts command
+		`#{command}`
+		$actions = []
 	end
 end
 
 
-def tile_active(settings, monitors, current_workspace, args)
-	window = get_active_window()
+def get_infos()
+	$windows = []
+	$monitors = []
+	`pxdo.py --print-window-info --print-monitor-info`.to_s.each_line do |line|
+		if line.start_with?("WINDOW: ")
+			line = line[8..-1]
+			id, geometry, extents, workspaces, states, wmclass, title = line.split("\t")
+			workspace, current_workspace = workspaces.split(":").collect do |ws| ws.to_i end
+			states = states.split(",")
+			if workspace == current_workspace and not(states.include?("hidden") or states.include?("fullscreen"))
+				w = Window.new(id, geometry, extents, workspace, states, wmclass, title)
+				$windows << w
+				$active_window = w if w.active
+			end
+		elsif line.start_with?("MONITOR: ")
+			line = line[9..-1]
+			name, id, geometry = line.split("\t")
+			$monitors << Monitor.new(name, id, geometry)
+		end
+	end
+end
+
+
+def tile_active(args)
+	window = $active_window
+	return if window.nil?
+	current_workspace = window.workspace
 	return if window.nil?
 	cols, rows, x, y = 1, 1, 0, 0
 	args.each do |arg|
 		arg.each_char do |c|
 			cols = 2 if c == 'l' or c == 'r'
 			x = cols - 1 if c == 'r'
-		
+
 			rows = 2 if c == 't' or c == 'b'
 			y = rows - 1 if c == 'b'			
 		end
 	end
-	grid(settings, window, monitors, current_workspace, cols, rows, x, y)
+	grid($settings, window, $monitors, current_workspace, cols, rows, x, y)
 end
 
 
@@ -85,23 +132,26 @@ def grid(settings, window, monitors, current_workspace, cols, rows, x, y)
 		end
 	end
 	columns[x][y] = window
-	
+
 	tile(settings, columns, get_monitor(window, monitors), settings.medians[current_workspace])
 end
 
 
-def binary(settings, windows, monitors, current_workspace)
-	windows = windows.reverse[0...2]
-	monitor = get_monitor(windows.last, monitors)
+def binary()
+	return if $windows.size < 2
+	current_workspace = $windows.first.workspace
+	windows = $windows.reverse[0...2]
+	monitor = get_monitor(windows.last, $monitors)
 	horizontal = (windows.last.width.to_f / windows.last.height.to_f) < (monitor.width.to_f / monitor.height.to_f)
-	split(settings, windows.last, horizontal ? 'up' : 'left', [windows.first])
+	split($settings, windows.last, horizontal ? 'up' : 'left', [windows.first])
 end
 
 
-def cycle(settings, windows, monitors, current_workspace)
-	monitor = get_monitor(get_active_window(windows), monitors)
-	windows.select! do |w| monitor == get_monitor(w, monitors) end
-	
+def cycle()
+	return if $active_window.nil?
+	monitor = get_monitor($active_window, $monitors)
+	windows = $windows.select do |w| monitor == get_monitor(w, $monitors) end
+
 	window_dimensions = windows.rotate.collect do |w| w.get_dimensions() end
 
 	windows.size.times do |i|
@@ -110,15 +160,19 @@ def cycle(settings, windows, monitors, current_workspace)
 end
 
 
-def swap(settings, windows, current_workspace)
-	windows = windows.reverse[0...2]
+def swap()
+	return if $windows.size < 2
+	current_workspace = $windows.first.workspace
+	windows = $windows.reverse[0...2]
 	swap_windows(windows.first, windows.last)
 end
 
 
-def swap_biggest(settings, windows, current_workspace)
-	active_window = windows.last
-	biggest_window = (windows.sort_by do |w| w.height * w.width end).reverse.first
+def swap_biggest()
+	return if $windows.size < 2
+	current_workspace = $windows.first.workspace
+	active_window = $windows.last
+	biggest_window = ($windows.sort_by do |w| w.height * w.width end).reverse.first
 	swap_windows(active_window, biggest_window)
 end
 
@@ -130,32 +184,34 @@ def swap_windows(window1, window2)
 end
 
 
-def grow_active(settings, windows, direction)
-	window = get_active_window(windows)
+def grow_active(direction)
+	window = $active_window
 	return if window.nil?
-	other_windows = windows.select do |w| window.id != w.id end
-	grow(settings, window, direction, other_windows)
+	other_windows = $windows.select do |w| window.id != w.id end
+	grow($settings, window, direction, other_windows)
 end
 
 
-def grid_active(settings, monitors, current_workspace, params)
-	window = get_active_window()
+def grid_active(params)
+	window = $active_window
+	return if window.nil?
+	current_workspace = window.workspace
 	cols, rows, x, y = params.match(/(\d+)x(\d+)-(\d+),(\d+)/i).captures	
-	grid(settings, window, monitors, current_workspace, cols.to_i, rows.to_i, x.to_i - 1 , y.to_i - 1)
+	grid($settings, window, $monitors, current_workspace, cols.to_i, rows.to_i, x.to_i - 1 , y.to_i - 1)
 end
 
 
-def cycle_monitors(settings, windows, monitors)
-	windows.each do |w|
-		move_to_next_monitor(w, monitors)
+def cycle_monitors()
+	$windows.each do |w|
+		move_to_next_monitor(w, $monitors)
 	end
 end
 
 
-def next_monitor_active(settings, windows, monitors)
-	window = get_active_window(windows)
+def next_monitor_active()
+	window = $active_window
 	return if window.nil?
-	move_to_next_monitor(window, monitors)
+	move_to_next_monitor(window, $monitors)
 end
 
 
@@ -163,7 +219,7 @@ def move_to_next_monitor(window, monitors)
 	monitors = monitors.uniq do |m| [m.x, m.y] end
 	monitor = get_monitor(window, monitors)	
 	next_monitor = monitors[(monitors.index(monitor) + 1) % monitors.size]
-	
+
 	move_to_monitor(window, monitor, next_monitor)
 end
 
@@ -171,15 +227,14 @@ end
 def move_to_monitor(window, current_monitor, target_monitor)
 	x = window.x - current_monitor.x + target_monitor.x
 	y = window.y - current_monitor.y + target_monitor.y
-	
+
 	window.resize(x, y, window.width, window.height)
 end
 
 
 def grow(settings, window, direction, other_windows)
-	monitors = Monitor.get_monitors()
-	monitor = get_monitor(window, monitors)
-	target_windows = other_windows.select do |w| lies_in_path(window, w, direction) and get_monitor(w, monitors) == monitor end
+	monitor = get_monitor(window, $monitors)
+	target_windows = other_windows.select do |w| lies_in_path(window, w, direction) and get_monitor(w, $monitors) == monitor end
 	up, down, left, right = 0, 0, 0, 0
 
 	if target_windows.empty?
@@ -263,24 +318,24 @@ def lies_between(w_start, w_end, target_start, target_end)
 	if w_start >= target_start and w_start <= target_end
 		return true
 	end
-	
+
 	if w_end >= target_start and w_end <= target_end
 		return true
 	end	
-	
+
 	if w_start <= target_start and w_end >= target_end
 		return true
 	end
-	
+
 	return false
 end
 
 
-def split_active(settings, windows, direction)
-	window = get_active_window(windows)
+def split_active(direction)
+	window = $active_window
 	return if window.nil?
-	same_pos_windows = windows.select do |w| have_same_pos(window, w) and not window.id == w.id end
-	split(settings, window, direction, same_pos_windows)
+	same_pos_windows = $windows.select do |w| have_same_pos(window, w) and not window.id == w.id end
+	split($settings, window, direction, same_pos_windows)
 end
 
 
@@ -299,7 +354,7 @@ def split(settings, window, direction, same_pos_windows = [nil])
 	splits = [same_pos_windows.size + 1, 2].max
 	split_height = (window_height / splits) - ((splits - 1) * (settings.gaps[:windows_x] / splits))
 	split_width = (window_width / splits) - ((splits - 1) * (settings.gaps[:windows_y] / splits))
-	
+
 	if direction == 'left' or direction == 'up'
 		same_pos_windows.unshift(window)
 	else
@@ -325,19 +380,20 @@ def split(settings, window, direction, same_pos_windows = [nil])
 end
 
 
-def tile_all_binary(settings, windows, monitors, current_workspace)
-	monitor_hash = get_monitor_window_hash(monitors, windows)
-	reverse_x = settings.reverse_x.include? current_workspace
-	reverse_y = settings.reverse_y.include? current_workspace
+def tile_all_binary()
+	current_workspace = $windows.first.workspace
+	monitor_hash = get_monitor_window_hash($monitors, $windows)
+	reverse_x = $settings.reverse_x.include? current_workspace
+	reverse_y = $settings.reverse_y.include? current_workspace
 
-	monitors.each do |monitor|
-		monitor_windows = get_sorted_monitor_windows(settings, monitor_hash[monitor.name], monitor, current_workspace)
+	$monitors.each do |monitor|
+		monitor_windows = get_sorted_monitor_windows($settings, monitor_hash[monitor.name], monitor, current_workspace)
 		monitor_windows.reject! do |w| w.nil? end
 		next if monitor_windows.empty?
-		tile(settings, [[monitor_windows[0]]], monitor, 0.5)
+		tile($settings, [[monitor_windows[0]]], monitor, 0.5)
 		for i in 0...monitor_windows.size
 			if i > 0
-				split(settings, monitor_windows[i - 1], i % 2 == 0 ? (reverse_y ? 'down' : 'up') : (reverse_x ? 'right' : 'left'), [monitor_windows[i]])
+				split($settings, monitor_windows[i - 1], i % 2 == 0 ? (reverse_y ? 'down' : 'up') : (reverse_x ? 'right' : 'left'), [monitor_windows[i]])
 			end
 		end
 	end
@@ -371,34 +427,34 @@ def get_sorted_monitor_windows(settings, windows, monitor, current_workspace)
 	end
 	reverse_x = settings.reverse_x.include? current_workspace
 	reverse_y = settings.reverse_y.include? current_workspace
-	
+
 	monitor_windows.sort_by! do |w| get_window_priority(settings.high_priority_windows, settings.low_priority_windows, w, reverse_x, reverse_y) end
 
 	return monitor_windows
 end
 
 
-def auto_tile_all(settings, binary = false)
+def auto_tile_all(binary = false)
 	require 'pty'
 	begin
-		PTY.spawn( "xprop -spy -root _NET_CLIENT_LIST_STACKING" ) do |stdout, stdin, pid|
+		PTY.spawn("xprop -spy -root _NET_CLIENT_LIST_STACKING") do |stdout, stdin, pid|
 			current_windows = []
 			stdout.each do |line|
 				begin
-					windows = Window.get_visible_windows()
-					if current_windows.size != windows.size or current_windows.last.id != windows.last.id
+					get_infos()
+					if current_windows.size != $windows.size or current_windows.last.id != windows.last.id
 						if binary
-							tile_all_binary(settings, windows, Monitor.get_monitors(), windows.last.workspace)
+							tile_all_binary()
 						else
-							tile_all(settings, windows, Monitor.get_monitors(), windows.last.workspace)
+							tile_all()
 						end
+						update()
 					end
 				rescue Interrupt, SystemExit
 					break
 				rescue
-					windows = []
 				end
-				current_windows = windows
+				current_windows = $windows
 			end
 		end
 	rescue Interrupt, SystemExit
@@ -406,33 +462,35 @@ def auto_tile_all(settings, binary = false)
 end
 
 
-def tile_all(settings, windows, monitors, current_workspace)
-	monitor_hash = get_monitor_window_hash(monitors, windows)
-	median = settings.medians[current_workspace]
+def tile_all()
+	current_workspace = $windows.first.workspace
+	monitor_hash = get_monitor_window_hash($monitors, $windows)
+	median = $settings.medians[current_workspace]
 
-	monitors.each do |monitor|
-		monitor_windows = get_sorted_monitor_windows(settings, monitor_hash[monitor.name], monitor, current_workspace)
+	$monitors.each do |monitor|
+		monitor_windows = get_sorted_monitor_windows($settings, monitor_hash[monitor.name], monitor, current_workspace)
 		next if monitor_windows.empty?
-		
+
 		column_sizes = nil
-		unless settings.column_configs.empty?
-			column_config = settings.column_configs.select do |cs| (cs.workspace.nil? or cs.workspace == current_workspace) and (cs.monitor.nil? or cs.monitor == monitor.name or cs.monitor == monitor.id.to_s) and cs.windows == monitor_windows.size end.last
+		unless $settings.column_configs.empty?
+			column_config = $settings.column_configs.select do |cs| (cs.workspace.nil? or cs.workspace == current_workspace) and (cs.monitor.nil? or cs.monitor == monitor.name or cs.monitor == monitor.id.to_s) and cs.windows == monitor_windows.size end.last
 			column_sizes = column_config.column_sizes unless column_config.nil?
 		end
-		
+
 		columns = []
 		if column_sizes.nil?
-			columns = calc_columns(monitor_windows, settings.col_max_size_main, settings.col_max_size, settings.col_max_count)
+			columns = calc_columns(monitor_windows, $settings.col_max_size_main, $settings.col_max_size, settings.col_max_count)
 		else
 			columns = set_columns(monitor_windows, column_sizes)
 		end
 
-		columns.last.reverse! if settings.reverse_y.include? current_workspace
-		columns.reverse! if settings.reverse_x.include? current_workspace
-		
-		tile(settings, columns, monitor, median)
+		columns.last.reverse! if $settings.reverse_y.include? current_workspace
+		columns.reverse! if $settings.reverse_x.include? current_workspace
+
+		tile($settings, columns, monitor, median)
 	end
 end
+
 
 def set_columns(windows, column_sizes)
 	columns = []
@@ -469,6 +527,7 @@ def calc_columns(windows, main_col_max, col_max, count_max)
 	return columns
 end
 
+
 def get_col_count(window_count, main_col_max, col_max)
 	col_count = ((window_count - main_col_max - 1) / col_max) + 2
 	col_count = 1 if window_count <= 1
@@ -490,7 +549,7 @@ end
 
 def get_window_priority(high_priority_windows, low_priority_windows, w, reverse_x, reverse_y)
 	criteria = Array.new
-	
+
 	prio = high_priority_windows.size
 	if w == nil
 		criteria = [prio, 1]
@@ -512,20 +571,6 @@ def get_window_priority(high_priority_windows, low_priority_windows, w, reverse_
 end
 
 
-def get_active_window(windows = nil)
-	active_id = Window.get_active_window_id()
-	if active_id == '0x0'
-		return nil
-	else
-		if windows.nil?
-			return Window.new(active_id)
-		else
-			return windows.select do |w| w.id.hex == active_id.hex end.first
-		end
-	end
-end
-
-
 def get_window_geometries(margin, screen_length, window_count, median = nil, first_gap, last_gap, window_gap)
 	current_length = remaining_length = screen_length - ((window_count - 1) * window_gap) - first_gap - last_gap
 
@@ -539,20 +584,20 @@ def get_window_geometries(margin, screen_length, window_count, median = nil, fir
 		lengths[i] = current_length
 		remaining_length -= current_length
 	end
-	
+
 	lengths.reverse! if median != nil and median < 0
-	
+
 	coords = Array.new
 	coords[0] = margin + first_gap
 	for i in 1...lengths.length
 		coords[i] = coords[i-1] + window_gap + lengths[i-1]
 	end
-	
+
 	window_geometries = []
 	for i in 0..coords.length do
 		window_geometries << [coords[i], lengths[i]]
 	end
-	
+
 	return window_geometries
 end
 
@@ -560,7 +605,7 @@ end
 def get_monitor(window, monitors)
 	monitors_x = monitors.select do |m| window.x >= m.x and window.x < m.x + m.width end
 	monitors_y = monitors.select do |m| window.y >= m.y and window.y < m.y + m.height end
-	
+
 	return (monitors_x & monitors_y).first unless (monitors_x & monitors_y).empty?
 	return monitors_x.first unless monitors_x.empty?
 	return monitors_y.first unless monitors_y.empty?
@@ -570,6 +615,7 @@ end
 
 class Settings
 	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :high_priority_windows, :low_priority_windows, :column_configs, :fake_windows, :col_max_size_main, :col_max_size, :col_max_count
+
 
 	def initialize()
 		@medians = {}
@@ -586,7 +632,7 @@ class Settings
 		@col_max_count = 2
 	end
 
-	
+
 	def read(config_file, additions = [])
 		unless config_file.nil? or File.exists?(config_file)
 			FileUtils.mkdir_p(File.dirname(config_file))
@@ -642,7 +688,7 @@ class Settings
 		end
 	end
 
-	
+
 	def set_medians(medians)
 		@medians = medians
 	end
@@ -687,6 +733,7 @@ end
 class ColumnConfig
 	attr_reader :windows, :workspace, :column_sizes, :monitor
 
+
 	def initialize(windows, workspace, column_sizes, monitor)
 		@windows = windows.to_i
 		@workspace = workspace == 'all' ? nil : workspace
@@ -696,211 +743,83 @@ class ColumnConfig
 end
 
 
-class Window # requires: wmcrtl, xprop, xwininfo
-	attr_reader :id, :title, :class_name, :workspace, :x, :y, :width, :height, :pid, :hidden, :fullscreen, :decorations, :ignore
+class Window
+	attr_reader :id, :title, :class_name, :workspace, :x, :y, :width, :height, :active, :hidden, :fullscreen, :decorations
 
-	def initialize(id)
-		@id = id
+
+	def initialize(id, geometry, extents, workspace, tags, wmclass, title)
+		@id, @workspace, @class_name = id, workspace, wmclass
+		@width, @height, @x, @y = geometry.gsub("x", "+").split("+").collect do |g| g.to_i end
+		@active = tags.include? "active"
+		@hidden = tags.include? "hidden"
+		@fullscreen = tags.include? "fullscreen"
+
 		@decorations = Hash.new
-		@ignore = false
-		@hidden = false
-		@fullscreen = false
-		@decorations[:left], decorations[:right], decorations[:top], decorations[:bottom] = 0, 0, 0, 0
-		
-		xprop = `xprop -id #{@id} WM_CLASS WM_NAME _NET_WM_ALLOWED_ACTIONS _NET_WM_STATE _NET_WM_DESKTOP _NET_WM_WINDOW_TYPE _NET_WM_PID _NET_FRAME_EXTENTS`.to_s
-		
-		xprop.each_line do |line|
-			if line.include? 'WM_CLASS'
-				@class_name = line.split('=').last.strip.split(', ').last.strip.tr('"', '')
-			elsif line.include? 'WM_NAME'
-				@title = line.split('=').last.strip.tr('"', '')
-			elsif line.include? '_NET_WM_WINDOW_TYPE'
-				type = line.split('=').last.strip
-				#["_NET_WM_WINDOW_TYPE_DOCK", "_NET_WM_WINDOW_TYPE_TOOLBAR", "_NET_WM_WINDOW_TYPE_MENU", "_NET_WM_WINDOW_TYPE_UTILITY", "_NET_WM_WINDOW_TYPE_DIALOG"]
-				@ignore = true unless type == '_NET_WM_WINDOW_TYPE_NORMAL' or type.include?('not found')
-			elsif line.include? '_NET_WM_STATE'
-				@hidden = line.split('=').last.include?('_NET_WM_STATE_HIDDEN')
-				@fullscreen = line.split('=').last.include?('_NET_WM_STATE_FULLSCREEN')
-			elsif line.include? '_NET_WM_ALLOWED_ACTIONS' and not line.include? 'not found'
-				@ignore = true unless line.include? '_NET_WM_ACTION_RESIZE'
-			elsif line.include? '_NET_WM_DESKTOP'
-				@workspace = line.split('=').last.strip
-			elsif line.include? '_NET_WM_PID'
-				@pid = line.split('=').last.strip.to_i
-			elsif line.include? '_NET_FRAME_EXTENTS' and not line.include? 'not found'
-				@decorations[:left], decorations[:right], decorations[:top], decorations[:bottom] = line.split('=').last.strip.split(",").collect do |i| i.strip.to_i || 0 end
-			end
-		end
-		unless @ignore
-			update_dimensions()
-		end
+		@decorations[:left], decorations[:right], decorations[:top], decorations[:bottom] = extents.split(",").collect do |d| d.to_i end
 	end
-	
-	def update_dimensions()
-		@x, @y, @width, @height = calc_dimensions()
-	end
-	
-	
-	def get_dimensions()
-		return @x, @y, @width, @height
-	end
-	
-	
-	def self.get_visible_windows()
-		current_workspace = Monitor.get_current_workspace()
-		windows = get_windows()
-		return (windows.select do |w| w.workspace == current_workspace and not w.hidden and not w.fullscreen end)
-	end
-	
-	
-	def self.get_windows()
-		windows = []
-		get_window_ids().each do |id|
-			windows << Window.new(id)
-		end
-		windows.reject! do |w| w.ignore end
-		return windows
-	end
-	
-	
-	def self.get_window_ids()
-		window_ids = []
-		`xprop -root _NET_CLIENT_LIST_STACKING`.to_s.each_line do |line|
-			id_string = line.gsub(/_NET_CLIENT_LIST_STACKING\(WINDOW\): *window id # +/, "")
-			id_string.split(', ').each do |id|
-				window_ids << id.strip
-			end
-		end
-		return window_ids.uniq
-	end
-	
-	
+
+
 	def x_end()
 		return @x + @width
 	end
-	
-	
+
+
 	def y_end()
 		return @y + @height
 	end
 
 
-	def self.get_active_window_id()
-		return `xprop -root _NET_ACTIVE_WINDOW`.strip.split(' ').last
+	def get_dimensions()
+		return @x, @y, @width, @height
 	end
-	
-	def resize(x, y, width, height, correction = true)
+
+
+	def resize(x, y, width, height)
 		x = x || @x
 		y = y || @y
 		width = width || @width
 		height = height || @height
-		
+
 		@x, @y, @width, @height = x, y, width, height
 
-		wmctrl_width = width - (@decorations[:left] + @decorations[:right])
-		wmctrl_height = height -(@decorations[:top] + @decorations[:bottom])
-
-		window_string = "-i -r #{@id}"
-		command = "wmctrl #{window_string} -e 0,#{x},#{y},#{wmctrl_width},#{wmctrl_height}"
-
-		`wmctrl #{window_string} -b remove,maximized_vert,maximized_horz`
-		#~ `wmctrl #{window_string} -b remove,fullscreen`
-		#~ puts command
-		`#{command}`
-		
-		if correction
-			current_x, current_y, current_width, current_height = calc_dimensions()
-			offset_x = x - current_x
-			offset_y = y - current_y
-			offset_width = width - current_width
-			offset_height = height - current_height
-			if(offset_x != 0 or offset_y != 0 or offset_width != 0 or offset_height != 0)
-				resize(x + offset_x, y + offset_y, width - offset_width, height - offset_height, false)
-			end
-		end
+		$actions << "--move-#{@id}-#{width}x#{height}+#{x}+#{y}"
 	end
 
 
-	def calc_dimensions()
-		x, y, width, height = 0, 0, 0, 0
-		win_info = `xwininfo -id #{@id}`
-			
-		win_info.each_line do |line|
-			if line.include? 'Width:'
-				width = line.match(/Width: *(.+)/i).captures.first.strip.to_i
-			elsif line.include? 'Height:'
-				height = line.match(/Height: *(.+)/i).captures.first.strip.to_i
-			elsif line.include? 'Absolute upper-left X:'
-				x = line.match(/Absolute upper-left X: *(.+)/i).captures.first.strip.to_i
-			elsif line.include? 'Absolute upper-left Y:'
-				y = line.match(/Absolute upper-left Y: *(.+)/i).captures.first.strip.to_i
-			end
-		end
-		
-		x -= @decorations[:left]
-		y -= @decorations[:top]
-		width += @decorations[:right] + @decorations[:left]
-		height += @decorations[:bottom] + @decorations[:top]
-		
-		return x, y, width, height
-	end
-	
-	
 	def grow(up, down, left, right)
 		x = @x - left
 		width = @width + left + right
-		
+
 		y = @y - up
 		height = @height + up + down
-		
+
 		self.resize(x, y, width, height)
 	end
 end
 
 
-class Monitor # requires: xrandr
+class Monitor
 	attr_reader :width, :height, :x, :y, :id, :windows, :name
 
 
-	def initialize(name, width, height, x, y, id)
-		@name, @width, @height, @x, @y, @id = name, width, height, x, y, id
+	def initialize(name, id, geometry)
+		@width, @height, @x, @y = geometry.gsub("x", "+").split("+").collect do |g| g.to_i end
+		@name, @id = name, id
 	end
-	
-	
+
+
 	def x_end()
 		return @x + @width
 	end
-	
-	
+
+
 	def y_end()
 		return @y + @height
 	end
 
 
-	def self.get_current_workspace()
-		return `xprop -root _NET_CURRENT_DESKTOP`.to_s.split('=').last.strip
-	end
-	
-	
 	def get_dimensions()
 		return @x, @y, @width, @height
-	end
-
-
-	def self.get_monitors()
-		xrandr_output = `xrandr --query`
-
-		monitors = []
-		id = 0
-		xrandr_output.each_line do |line|
-			if line =~ /.+ connected.*(\d+)x(\d+)\+(\d+)\+(\d+)/
-				width, height, x, y = line.match(/(\d+)x(\d+)\+(\d+)\+(\d+)/i).captures.collect do |c| c.to_i end
-				name = line.match(/(.+) connected/i).captures.first
-				monitors << Monitor.new(name, width, height, x, y, id)
-				id += 1
-			end
-		end
-		return monitors
 	end
 end
 

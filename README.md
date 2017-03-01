@@ -97,11 +97,7 @@ show version
 
 -xprop
 
--wmctrl
-
--xwininfo
-
--xrandr
+-[pxdo](https://github.com/xhsdf/pxdo)
 
 
 #Settings
