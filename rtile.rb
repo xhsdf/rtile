@@ -88,7 +88,7 @@ def get_infos()
 		if line.start_with?("WINDOW: ")
 			line = line[8..-1]
 			id, geometry, extents, workspaces, states, wmclass, title = line.split("\t")
-			workspace, current_workspace = workspaces.split(":").collect do |ws| ws.to_i end
+			workspace, current_workspace = workspaces.split(":").collect do |ws| ws end
 			states = states.split(",")
 			if workspace == current_workspace and not(states.include?("hidden") or states.include?("fullscreen"))
 				w = Window.new(id, geometry, extents, workspace, states, wmclass, title)
