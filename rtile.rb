@@ -5,7 +5,7 @@
 
 
 NAME = "rtile"
-VERSION = "2.00"
+VERSION = "2.01"
 GROW_PUSHBACK = 32
 
 
@@ -74,7 +74,7 @@ end
 def update()
 	unless $actions.empty?
 		command = "pxdo.py " + $actions.join(" ")
-		#~ puts command
+		puts command
 		`#{command}`
 		$actions = []
 	end
@@ -88,12 +88,12 @@ def get_infos()
 		if line.start_with?("WINDOW: ")
 			line = line[8..-1]
 			id, geometry, extents, workspaces, states, wmclass, title = line.split("\t")
-			workspace, current_workspace = workspaces.split(":").collect do |ws| ws end
+			workspace, current_workspace = workspaces.split(":").collect do |ws| ws.strip end
 			states = states.split(",")
-			if workspace == current_workspace and not(states.include?("hidden") or states.include?("fullscreen"))
-				w = Window.new(id, geometry, extents, workspace, states, wmclass, title)
+			w = Window.new(id, geometry, extents, workspace, states, wmclass, title)
+			$active_window = w if w.active
+			if w.workspace == current_workspace and not(w.hidden or w.fullscreen)
 				$windows << w
-				$active_window = w if w.active
 			end
 		elsif line.start_with?("MONITOR: ")
 			line = line[9..-1]
