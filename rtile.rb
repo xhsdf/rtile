@@ -74,7 +74,7 @@ end
 def update()
 	unless $actions.empty?
 		command = "pxdo.py " + $actions.join(" ")
-		puts command
+		#~ puts command
 		`#{command}`
 		$actions = []
 	end
