@@ -5,7 +5,7 @@
 
 
 NAME = "rtile"
-VERSION = "2.01"
+VERSION = "2.02"
 GROW_PUSHBACK = 32
 
 
@@ -39,6 +39,8 @@ def main()
 
 	if ARGV.include? "--all"
 		tile_all()
+	elsif ARGV.include? "--all-active"
+		tile_all(true)
 	elsif ARGV.include? "--all-binary"
 		tile_all_binary()
 	elsif ARGV.include? "--all-auto"
@@ -462,12 +464,16 @@ def auto_tile_all(binary = false)
 end
 
 
-def tile_all()
+def tile_all(active = false)
 	current_workspace = $windows.first.workspace
 	monitor_hash = get_monitor_window_hash($monitors, $windows)
 	median = $settings.medians[current_workspace]
 
 	$monitors.each do |monitor|
+		if active and not monitor_hash[monitor.name].include? $active_window
+			next
+		end
+
 		monitor_windows = get_sorted_monitor_windows($settings, monitor_hash[monitor.name], monitor, current_workspace)
 		next if monitor_windows.empty?
 

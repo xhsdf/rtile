@@ -10,6 +10,10 @@
 
 Tile all windows on screen.
 
+## `--all-active`
+
+Tile all windows on the same monitor as the active window.
+
 ## `--all-binary`
 
 Tile all windows on screen and have every window take half the space of the previous window.
