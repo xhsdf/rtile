@@ -91,6 +91,7 @@ Show version.
 # Dependencies
 
 - [pxdo](https://github.com/xhsdf/pxdo)
+- rexml gem as of ruby 3.0.0
 
 # Settings
 

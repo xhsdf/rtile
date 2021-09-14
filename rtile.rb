@@ -679,7 +679,7 @@ class Settings
 	end
 
 	def get_gaps(monitor, type)
-		if @monitor_gaps[monitor.name].nil? or @monitor_gaps[monitor.name][type].nil?
+		if monitor.nil? or @monitor_gaps[monitor.name].nil? or @monitor_gaps[monitor.name][type].nil?
 			return @gaps[type]
 		else
 			return @monitor_gaps[monitor.name][type]
