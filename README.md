@@ -18,10 +18,6 @@ Tile all windows on the same monitor as the active window.
 
 Tile all windows on screen and have every window take half the space of the previous window.
 
-## `--all-auto`
-
-Automatically tile all windows on screen when a new window is opened, closed or focused.
-
 ## `(t|b|l|r|tl|tr|bl|br)`
 
 Move active window to edges (left, top-left, top, top-right, etc.).
@@ -94,9 +90,7 @@ Show version.
 
 # Dependencies
 
-- xprop
 - [pxdo](https://github.com/xhsdf/pxdo)
-- rexml gem as of ruby 3.0.0
 
 # Settings
 
@@ -108,6 +102,16 @@ If it does not exist it will be generated.
 ### `top`, `bottom`, `left`, `right`
 
 Space between windows and screen edges.
+
+#### Per monitor gap settings
+
+Gap settings defined for a monitor take priority over the general settings.
+
+Example:
+```
+	<gaps monitor="DP-1" top="22"/>
+	<gaps top="42" bottom="22" left="22" right="22" windows_x="22" windows_y="22"/>
+```
 
 ### `windows_x`
 

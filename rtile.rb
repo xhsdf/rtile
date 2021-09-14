@@ -1,11 +1,11 @@
 #!/usr/bin/ruby
 
 
-# requires: xprop, pxdo.py
+# requires: pxdo.py
 
 
 NAME = "rtile"
-VERSION = "2.02"
+VERSION = "2.10"
 GROW_PUSHBACK = 32
 
 
@@ -43,10 +43,6 @@ def main()
 		tile_all(true)
 	elsif ARGV.include? "--all-binary"
 		tile_all_binary()
-	elsif ARGV.include? "--all-auto"
-		auto_tile_all()
-	elsif ARGV.include? "--all-auto-binary"
-		auto_tile_all(true)
 	elsif ARGV.include? "--binary"
 		binary()
 	elsif ARGV.include? "--swap"
@@ -198,7 +194,7 @@ def grid_active(params)
 	window = $active_window
 	return if window.nil?
 	current_workspace = window.workspace
-	cols, rows, x, y = params.match(/(\d+)x(\d+)-(\d+),(\d+)/i).captures	
+	cols, rows, x, y = params.match(/(\d+)x(\d+)-(\d+),(\d+)/i).captures
 	grid($settings, window, $monitors, current_workspace, cols.to_i, rows.to_i, x.to_i - 1 , y.to_i - 1)
 end
 
@@ -242,13 +238,13 @@ def grow(settings, window, direction, other_windows)
 	if target_windows.empty?
 		case direction
 			when 'up'
-				up = window.y - monitor.y - settings.gaps[:top]
+				up = window.y - monitor.y - settings.get_gaps(monitor, :top)
 			when 'down'
-				down = monitor.y_end - settings.gaps[:bottom] - window.y_end
+				down = monitor.y_end - settings.get_gaps(monitor, :bottom) - window.y_end
 			when 'left'
-				left = window.x - monitor.x - settings.gaps[:left]
+				left = window.x - monitor.x - settings.get_gaps(monitor, :left)
 			when 'right'
-				right = monitor.x_end - settings.gaps[:right] - window.x_end
+				right = monitor.x_end - settings.get_gaps(monitor, :right) - window.x_end
 		end
 	else
 		target = get_closest_window(target_windows, direction)
@@ -256,13 +252,13 @@ def grow(settings, window, direction, other_windows)
 		target_windows << target
 		case direction
 			when 'up'
-				up = window.y - target.y_end - settings.gaps[:windows_y]
+				up = window.y - target.y_end - settings.get_gaps(monitor, :windows_y)
 			when 'down'
-				down = target.y - settings.gaps[:windows_y] - window.y_end
+				down = target.y - settings.get_gaps(monitor, :windows_y) - window.y_end
 			when 'left'
-				left = window.x - target.x_end - settings.gaps[:windows_x]
+				left = window.x - target.x_end - settings.get_gaps(monitor, :windows_x)
 			when 'right'
-				right = target.x - settings.gaps[:windows_x] - window.x_end
+				right = target.x - settings.get_gaps(monitor, :windows_x) - window.x_end
 		end
 
 		if up + down + left + right == 0
@@ -352,10 +348,12 @@ def split(settings, window, direction, same_pos_windows = [nil])
 	window_height = window.height
 	window_width = window.width
 
+	monitor = get_monitor(window, $monitors)
+
 	same_pos_windows = [nil] if same_pos_windows.empty?
 	splits = [same_pos_windows.size + 1, 2].max
-	split_height = (window_height / splits) - ((splits - 1) * (settings.gaps[:windows_x] / splits))
-	split_width = (window_width / splits) - ((splits - 1) * (settings.gaps[:windows_y] / splits))
+	split_height = (window_height / splits) - ((splits - 1) * (settings.get_gaps(monitor, :windows_x) / splits))
+	split_width = (window_width / splits) - ((splits - 1) * (settings.get_gaps(monitor, :windows_y) / splits))
 
 	if direction == 'left' or direction == 'up'
 		same_pos_windows.unshift(window)
@@ -364,7 +362,7 @@ def split(settings, window, direction, same_pos_windows = [nil])
 	end
 	if direction == 'left' or direction == 'right'
 		same_pos_windows.each_with_index do |w, i|
-			x = window_x + (i * (split_width + settings.gaps[:windows_x]))
+			x = window_x + (i * (split_width + settings.get_gaps(monitor,:windows_x)))
 			if i == same_pos_windows.size - 1
 				split_width = (window_x + window_width) - x
 			end
@@ -372,7 +370,7 @@ def split(settings, window, direction, same_pos_windows = [nil])
 		end
 	elsif direction == 'up' or direction == 'down'
 		same_pos_windows.each_with_index do |w, i|
-			y = window_y + (i * (split_height + settings.gaps[:windows_y]))
+			y = window_y + (i * (split_height + settings.get_gaps(monitor, :windows_y)))
 			if i == same_pos_windows.size - 1
 				split_width = (window_y + window_height) - y
 			end
@@ -433,34 +431,6 @@ def get_sorted_monitor_windows(settings, windows, monitor, current_workspace)
 	monitor_windows.sort_by! do |w| get_window_priority(settings.high_priority_windows, settings.low_priority_windows, w, reverse_x, reverse_y) end
 
 	return monitor_windows
-end
-
-
-def auto_tile_all(binary = false)
-	require 'pty'
-	begin
-		PTY.spawn("xprop -spy -root _NET_CLIENT_LIST_STACKING") do |stdout, stdin, pid|
-			current_windows = []
-			stdout.each do |line|
-				begin
-					get_infos()
-					if current_windows.size != $windows.size or current_windows.last.id != windows.last.id
-						if binary
-							tile_all_binary()
-						else
-							tile_all()
-						end
-						update()
-					end
-				rescue Interrupt, SystemExit
-					break
-				rescue
-				end
-				current_windows = $windows
-			end
-		end
-	rescue Interrupt, SystemExit
-	end
 end
 
 
@@ -543,9 +513,9 @@ end
 
 
 def tile(settings, columns, monitor, median)
-	x_window_geometries = get_window_geometries(monitor.x, monitor.width, columns.size, median, settings.gaps[:left], settings.gaps[:right], settings.gaps[:windows_x])
+	x_window_geometries = get_window_geometries(monitor.x, monitor.width, columns.size, median, settings.get_gaps(monitor, :left), settings.get_gaps(monitor, :right), settings.get_gaps(monitor, :windows_x))
 	columns.each_with_index do |column, x|
-		y_window_geometries = get_window_geometries(monitor.y, monitor.height, column.size, nil, settings.gaps[:top], settings.gaps[:bottom], settings.gaps[:windows_y])
+		y_window_geometries = get_window_geometries(monitor.y, monitor.height, column.size, nil, settings.get_gaps(monitor, :top), settings.get_gaps(monitor, :bottom), settings.get_gaps(monitor, :windows_y))
 		column.each_with_index do |w, y|
 			w.resize(x_window_geometries[x][0], y_window_geometries[y][0], x_window_geometries[x][1], y_window_geometries[y][1]) if w != nil
 		end
@@ -620,7 +590,7 @@ end
 
 
 class Settings
-	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :floating, :high_priority_windows, :low_priority_windows, :column_configs, :fake_windows, :col_max_size_main, :col_max_size, :col_max_count
+	attr_reader :medians, :reverse_x, :reverse_y, :gaps, :monitor_gaps, :floating, :high_priority_windows, :low_priority_windows, :column_configs, :fake_windows, :col_max_size_main, :col_max_size, :col_max_count
 
 
 	def initialize()
@@ -628,6 +598,7 @@ class Settings
 		@reverse_x = []
 		@reverse_y = []
 		@gaps = {:top => 0, :bottom => 0, :left => 0, :right => 0, :windows_x => 0, :windows_y => 0}
+		@monitor_gaps = {}
 		@floating = []
 		@high_priority_windows = []
 		@low_priority_windows = []
@@ -654,12 +625,15 @@ class Settings
 		xml_doc = Document.new(xml_string)
 		xml_doc.elements["settings"].elements.each do |el|
 			if el.name == 'gaps'
-				@gaps[:top] = el.attributes["top"].to_i unless el.attributes["top"].nil?
-				@gaps[:bottom] = el.attributes["bottom"].to_i unless el.attributes["bottom"].nil?
-				@gaps[:left] = el.attributes["left"].to_i unless el.attributes["left"].nil?
-				@gaps[:right] = el.attributes["right"].to_i unless el.attributes["right"].nil?
-				@gaps[:windows_x] = el.attributes["windows_x"].to_i unless el.attributes["windows_x"].nil?
-				@gaps[:windows_y] = el.attributes["windows_y"].to_i unless el.attributes["windows_y"].nil?
+				monitor_name = el.attributes["monitor"]
+				if monitor_name.nil? or monitor_name.empty?
+					fill_gaps(@gaps, el)
+				else
+					if @monitor_gaps[monitor_name].nil?
+						@monitor_gaps[monitor_name] = {}
+					end
+					fill_gaps(@monitor_gaps[monitor_name], el)
+				end
 			elsif el.name == 'columns'
 				@col_max_size_main = el.attributes["max_size_main"].to_i unless el.attributes["max_size_main"].nil?
 				@col_max_size = el.attributes["max_size"].to_i unless el.attributes["max_size"].nil?
@@ -691,6 +665,24 @@ class Settings
 			elsif el.name == 'column_config'
 				column_configs << ColumnConfig.new(el.attributes["windows"], el.attributes["workspace"], el.attributes["column_sizes"], el.attributes["monitor"])
 			end
+		end
+	end
+
+
+	def fill_gaps(gaps_map, el)
+		gaps_map[:top] = el.attributes["top"].to_i unless el.attributes["top"].nil?
+		gaps_map[:bottom] = el.attributes["bottom"].to_i unless el.attributes["bottom"].nil?
+		gaps_map[:left] = el.attributes["left"].to_i unless el.attributes["left"].nil?
+		gaps_map[:right] = el.attributes["right"].to_i unless el.attributes["right"].nil?
+		gaps_map[:windows_x] = el.attributes["windows_x"].to_i unless el.attributes["windows_x"].nil?
+		gaps_map[:windows_y] = el.attributes["windows_y"].to_i unless el.attributes["windows_y"].nil?
+	end
+
+	def get_gaps(monitor, type)
+		if @monitor_gaps[monitor.name].nil? or @monitor_gaps[monitor.name][type].nil?
+			return @gaps[type]
+		else
+			return @monitor_gaps[monitor.name][type]
 		end
 	end
 
