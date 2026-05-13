@@ -1,3 +1,5 @@
+# Deprecated. Use https://github.com/xhsdf/ctile instead.
+
 # Ruby Script for Manual Tiling and Window Placement
 
 ![Demo](http://i.imgur.com/4VgLJBn.gif)
